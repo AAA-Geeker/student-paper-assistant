@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ' *)",
+      "Bash(.venv/Scripts/python.exe -c ' *)",
+      "Bash(.venv/Scripts/pip.exe install *)",
+      "Bash(.venv/Scripts/pip.exe list *)",
+      "Bash(.venv/Scripts/python.exe -m pytest tests/ -v)",
+      "Bash(npx tsc *)",
+      "Bash(.venv/Scripts/python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000)",
+      "Bash(curl -s http://localhost:8000/api/health)",
+      "Bash(npx vite *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173)",
+      "Bash(pkill -f \"uvicorn app.main\")",
+      "Bash(curl -s -X POST http://localhost:8000/api/auth/register -H \"Content-Type: application/json\" -d '{\"email\":\"demo@test.com\",\"password\":\"demo123\"}')",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('Register OK, user_id='+str\\(d.get\\('id','?'\\)\\)\\)\")",
+      "Bash(curl -s -X POST http://localhost:8000/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"demo@test.com\",\"password\":\"demo123\"}')",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d['access_token']\\)\")",
+      "Bash(curl -s -X POST http://localhost:8000/api/papers -H 'Content-Type: application/json' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1IiwiZXhwIjoxNzgzNzc5NDMzfQ.Yt0oxaTtRd39_O-5ha2E77qp66afBmXUHeKIg_c8TH0' -d '{\"title\":\"基于对比学习的LLM对齐评估方法\"}')",
+      "Bash(curl -s -v http://localhost:8000/api/ai/skills -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1IiwiZXhwIjoxNzgzNzc5NDMzfQ.Yt0oxaTtRd39_O-5ha2E77qp66afBmXUHeKIg_c8TH0')",
+      "Bash(curl -s http://localhost:8000/docs)",
+      "Bash(curl -s http://localhost:8000/openapi.json)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(p\\) for p in sorted\\(d['paths'].keys\\(\\)\\)]\")",
+      "Bash(netstat -ano)",
+      "Bash(taskkill //PID 29436 //F)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); paths=sorted\\(d['paths'].keys\\(\\)\\); print\\(f'Total routes: {len\\(paths\\)}'\\); [print\\(f'  {p}'\\) for p in paths]\")",
+      "Bash(curl -s -X POST http://localhost:8000/api/ai/skill/execute -H 'Content-Type: application/json' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzIiwiZXhwIjoxNzgzNzc5Nzc0fQ.WSDCsEp-SAeib3BjUzrSL7NRuYwHbeW7hjW8garb5eQ' -d '{\"skill\":\"paper-outline\",\"title\":\"基于对比学习的LLM对齐评估方法研究\"}')",
+      "Bash(curl *)",
+      "Bash(.venv/Scripts/python.exe -c \"from app.main import app; print\\('import ok'\\)\")",
+      "Bash(gh auth *)",
+      "Bash(git --version)",
+      "Bash(git config *)"
+    ]
+  }
+}
