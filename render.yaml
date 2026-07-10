@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: student-paper-assistant
+    runtime: docker
+    repo: https://github.com/AAA-Geeker/student-paper-assistant
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_API_BASE
+        value: https://api.deepseek.com/v1
+      - key: LLM_MODEL
+        value: deepseek-chat
+      - key: LLM_MAX_TOKENS
+        value: "4096"
+      - key: DATABASE_URL
+        value: sqlite:////app/data/app.db
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "1440"
+      - key: DEFAULT_TIER
+        value: budget

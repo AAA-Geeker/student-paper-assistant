@@ -29,7 +29,10 @@
       "Bash(.venv/Scripts/python.exe -c \"from app.main import app; print\\('import ok'\\)\")",
       "Bash(gh auth *)",
       "Bash(git --version)",
-      "Bash(git config *)"
+      "Bash(git config *)",
+      "Bash(git commit -m 'Initial commit: Student Paper Writing Assistant *)",
+      "Bash(winget install *)",
+      "Bash(cp -r \"D:/WorkBuddy/student-paper-assistant/frontend/dist/\"* \"D:/WorkBuddy/student-paper-assistant/backend/static/\")"
     ]
   }
 }
