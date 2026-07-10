@@ -32,7 +32,11 @@
       "Bash(git config *)",
       "Bash(git commit -m 'Initial commit: Student Paper Writing Assistant *)",
       "Bash(winget install *)",
-      "Bash(cp -r \"D:/WorkBuddy/student-paper-assistant/frontend/dist/\"* \"D:/WorkBuddy/student-paper-assistant/backend/static/\")"
+      "Bash(cp -r \"D:/WorkBuddy/student-paper-assistant/frontend/dist/\"* \"D:/WorkBuddy/student-paper-assistant/backend/static/\")",
+      "Bash(ngrok http *)",
+      "Bash(python -c \"import sys,json; tunnels=json.load\\(sys.stdin\\)['tunnels']; [print\\(t['public_url']\\) for t in tunnels]\")",
+      "Bash(docker *)",
+      "Bash(python -c \"import sys,json; [print\\(f'  {m[\\\\\"name\\\\\"]} available={m[\\\\\"available\\\\\"]}'\\) for m in json.load\\(sys.stdin\\)['models']]\")"
     ]
   }
 }
