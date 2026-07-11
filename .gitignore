@@ -43,6 +43,11 @@ Thumbs.db
 .coverage
 htmlcov/
 
+# Deployment data
+pgdata/
+data/
+nginx/ssl/
+
 # Misc
 *.tmp
 *.bak

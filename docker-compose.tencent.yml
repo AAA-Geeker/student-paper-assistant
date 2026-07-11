@@ -1,10 +1,11 @@
 # ============================================================================
-# 生产环境 Docker Compose 配置（适配腾讯云 CVM / LightHouse）
-# 启动: docker compose -f docker-compose.prod.yml up -d --build
+# 腾讯云部署专用 Docker Compose 配置
+# 适用于：腾讯云 CVM / LightHouse 单机部署
+# 启动: docker compose -f docker-compose.tencent.yml up -d --build
 # ============================================================================
 
 services:
-  # ─── PostgreSQL 数据库 ────────────────────────────────────────────────────
+  # ─── 数据库 ────────────────────────────────────────────────────────────────
   db:
     image: postgres:16-alpine
     environment:
@@ -12,16 +13,16 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: paper
     volumes:
-      - ./pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
     restart: unless-stopped
+    # 健康检查 — 确保数据库就绪后再启动后端
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U paper -d paper"]
       interval: 5s
       timeout: 5s
       retries: 5
-      start_period: 10s
 
-  # ─── FastAPI 后端 ─────────────────────────────────────────────────────────
+  # ─── 后端 API ──────────────────────────────────────────────────────────────
   backend:
     build:
       context: ./backend
@@ -29,25 +30,28 @@ services:
     environment:
       DATABASE_URL: postgresql://paper:${POSTGRES_PASSWORD}@db/paper
       SECRET_KEY: ${SECRET_KEY}
+      # LLM 配置（全部从 .env 读取）
       LLM_API_KEY: ${LLM_API_KEY:-}
-      LLM_API_BASE: ${LLM_API_BASE:-https://api.openai.com/v1}
-      LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
+      LLM_API_BASE: ${LLM_API_BASE:-https://api.deepseek.com/v1}
+      LLM_MODEL: ${LLM_MODEL:-deepseek-chat}
       LLM_MAX_TOKENS: ${LLM_MAX_TOKENS:-4096}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # 额度控制
       MONTHLY_BUDGET_USD: ${MONTHLY_BUDGET_USD:-10.0}
       WARN_AT_PERCENT: ${WARN_AT_PERCENT:-80}
       AUTO_DOWNGRADE: ${AUTO_DOWNGRADE:-true}
       DEFAULT_TIER: ${DEFAULT_TIER:-budget}
+      # 上下文控制
       MAX_CONTEXT_TOKENS: ${MAX_CONTEXT_TOKENS:-8000}
       SEGMENT_POLISH_SIZE: ${SEGMENT_POLISH_SIZE:-500}
-      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
+    # 不暴露端口到公网 — 仅通过内部网络访问
 
-  # ─── 前端 (Nginx 静态文件服务) ────────────────────────────────────────────
+  # ─── 前端 (Nginx 静态文件服务) ─────────────────────────────────────────────
   frontend:
     build:
       context: ./frontend
@@ -56,7 +60,7 @@ services:
     depends_on:
       - backend
 
-  # ─── Nginx 反向代理 ──────────────────────────────────────────────────────
+  # ─── 反向代理 (Nginx) ──────────────────────────────────────────────────────
   nginx:
     image: nginx:alpine
     ports:
@@ -69,3 +73,7 @@ services:
     depends_on:
       - frontend
       - backend
+
+volumes:
+  pgdata:
+    driver: local
