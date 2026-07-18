@@ -2,7 +2,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useEffect, useState } from 'react';
 import { getProfile } from '../api/core';
-import { Menu, X, Sparkles, ShieldCheck, FileEdit, Coins, Home, ChevronDown } from 'lucide-react';
+import { Menu, X, Sparkles, ShieldCheck, FileEdit, Coins } from 'lucide-react';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token);

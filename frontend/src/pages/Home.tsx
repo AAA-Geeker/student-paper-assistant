@@ -136,7 +136,7 @@ export default function Home() {
           <p className="text-gray-500">不需要学习成本，粘贴 → 选择 → 确认，三秒上手</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-3xl mx-auto">
-          {steps.map((s, i) => (
+          {steps.map((s) => (
             <div key={s.num} className="text-center">
               <div className="w-14 h-14 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mx-auto mb-4 text-xl font-bold">
                 {s.num}

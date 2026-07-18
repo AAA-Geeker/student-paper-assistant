@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToastStore } from '../components/Toast';
-import { ArrowLeft, Coins, Crown, Gift, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Coins, Crown, Gift, Loader2 } from 'lucide-react';
 import { getProfile, getCredits, getTopUpPackages, getSubscriptionPlans, topUp, subscribe } from '../api/core';
 import type { UserProfile, TopUpPackage, SubscriptionPlan, CreditTransaction } from '../api/core';
 
