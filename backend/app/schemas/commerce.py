@@ -72,6 +72,8 @@ class SubscriptionPlanOut(BaseModel):
     id: str
     name: str
     monthly_price_rmb: int
+    yearly_price_rmb: int = 0
+    monthly_discount_label: str = ""
     daily_free_core: int
     discount_percent: int
     description: str

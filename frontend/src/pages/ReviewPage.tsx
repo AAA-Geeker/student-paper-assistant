@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, ArrowLeft, Loader2, AlertCircle, CheckCircle, Info, Coins } from 'lucide-react';
+import { ShieldCheck, ArrowLeft, Loader2, AlertCircle, CheckCircle, Info, Coins, FileEdit } from 'lucide-react';
+import ExportButtons from '../components/ExportButtons';
 import { preSubmissionReview, estimatePreSubmissionReview, getProfile } from '../api/core';
 
 const venues = [
@@ -70,8 +71,8 @@ export default function ReviewPage() {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <button onClick={() => navigate('/dashboard')} className="flex items-center gap-1 text-sm text-gray-500 hover:text-indigo-600 mb-4">
-        <ArrowLeft size={16} /> 返回工作台
+      <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-sm text-gray-500 hover:text-indigo-600 mb-4">
+        <ArrowLeft size={16} /> 返回
       </button>
 
       {/* 💡 使用时机提示 */}
@@ -249,14 +250,32 @@ export default function ReviewPage() {
 
         {step === 3 && result && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <h3 className="font-bold text-gray-900">审稿报告</h3>
-              <button
-                onClick={() => { setStep(1); setResult(''); setText(''); }}
-                className="text-sm text-indigo-600 hover:underline"
-              >
-                重新审查
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    // 跳转到修改页，带上原文和审稿意见
+                    navigate('/revision', {
+                      state: { feedback: result, originalText: text }
+                    });
+                  }}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-medium hover:bg-emerald-100 border border-emerald-200 transition-colors"
+                >
+                  <FileEdit size={14} />
+                  根据审稿建议修改原文
+                </button>
+                <button
+                  onClick={() => { setStep(1); setResult(''); setText(''); }}
+                  className="text-sm text-indigo-600 hover:underline"
+                >
+                  重新审查
+                </button>
+              </div>
+            </div>
+            {/* 导出按钮 */}
+            <div className="flex justify-end">
+              <ExportButtons content={result} title={`审稿报告-${venue}`} />
             </div>
             <div className="prose prose-sm max-w-none bg-gray-50 p-4 rounded-lg border border-gray-200">
               <pre className="whitespace-pre-wrap font-sans text-sm text-gray-800">{result}</pre>

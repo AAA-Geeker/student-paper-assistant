@@ -91,6 +91,8 @@ export interface SubscriptionPlan {
   id: string;
   name: string;
   monthly_price_rmb: number;
+  yearly_price_rmb: number;
+  monthly_discount_label: string;
   daily_free_core: number;
   discount_percent: number;
   description: string;

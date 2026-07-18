@@ -44,9 +44,27 @@ CORE_PRICING = {
 
 # 订阅计划
 SUBSCRIPTION_PLANS = {
-    "free": {"daily_free_core": 0, "discount_percent": 100, "monthly_price_rmb": 0},
-    "pro": {"daily_free_core": 3, "discount_percent": 80, "monthly_price_rmb": 29},
-    "premium": {"daily_free_core": 10, "discount_percent": 80, "monthly_price_rmb": 79},
+    "free": {
+        "daily_free_core": 0,
+        "discount_percent": 100,
+        "monthly_price_rmb": 0,
+        "yearly_price_rmb": 0,  # 不适用
+        "monthly_discount_label": "",
+    },
+    "pro": {
+        "daily_free_core": 3,
+        "discount_percent": 80,
+        "monthly_price_rmb": 29,
+        "yearly_price_rmb": 199,  # 原价 29*12=348，年付 199 省 43%
+        "monthly_discount_label": "年付省 43%",
+    },
+    "premium": {
+        "daily_free_core": 10,
+        "discount_percent": 80,
+        "monthly_price_rmb": 79,
+        "yearly_price_rmb": 499,  # 原价 79*12=948，年付 499 省 47%
+        "monthly_discount_label": "年付省 47%",
+    },
 }
 
 

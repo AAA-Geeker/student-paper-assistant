@@ -96,12 +96,14 @@ def list_subscription_plans() -> List[dict]:
             "id": plan_id,
             "name": {"free": "免费版", "pro": "Pro 版", "premium": "Premium 版"}.get(plan_id, plan_id),
             "monthly_price_rmb": info["monthly_price_rmb"],
+            "yearly_price_rmb": info["yearly_price_rmb"],
+            "monthly_discount_label": info["monthly_discount_label"],
             "daily_free_core": info["daily_free_core"],
             "discount_percent": info["discount_percent"],
             "description": {
                 "free": "注册即送 1000 点，按次付费。",
-                "pro": "29元/月，每天 3 次核心功能免费，辅助功能 8 折。",
-                "premium": "79元/月，每天 10 次核心功能免费，辅助功能 8 折，优先响应。",
+                "pro": "29元/月（年付199元），每天 3 次核心功能免费，辅助功能 8 折。",
+                "premium": "79元/月（年付499元），每天 10 次核心功能免费，辅助功能 8 折，优先响应。",
             }.get(plan_id, ""),
         }
         for plan_id, info in SUBSCRIPTION_PLANS.items()

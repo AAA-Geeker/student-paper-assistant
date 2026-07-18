@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { FileEdit, ArrowLeft, Loader2, AlertCircle, CheckCircle, Info, Coins } from 'lucide-react';
+import ExportButtons from '../components/ExportButtons';
 import { paperRevision, estimatePaperRevision, getProfile } from '../api/core';
 
 const revisionStyles = [
@@ -17,9 +18,10 @@ const availableModels = [
 
 export default function RevisionPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [text, setText] = useState('');
-  const [feedback, setFeedback] = useState('');
+  const [text, setText] = useState((location.state as any)?.originalText || '');
+  const [feedback, setFeedback] = useState((location.state as any)?.feedback || '');
   const [style, setStyle] = useState<'minimal' | 'standard' | 'deep'>('standard');
   const [urgent, setUrgent] = useState(false);
   const [model, setModel] = useState('deepseek');
@@ -68,8 +70,8 @@ export default function RevisionPage() {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <button onClick={() => navigate('/dashboard')} className="flex items-center gap-1 text-sm text-gray-500 hover:text-indigo-600 mb-4">
-        <ArrowLeft size={16} /> 返回工作台
+      <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-sm text-gray-500 hover:text-indigo-600 mb-4">
+        <ArrowLeft size={16} /> 返回
       </button>
 
       {/* 💡 使用时机提示 */}
@@ -252,12 +254,15 @@ export default function RevisionPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-gray-900">修改方案</h3>
-              <button
-                onClick={() => { setStep(1); setResult(''); setText(''); setFeedback(''); }}
-                className="text-sm text-indigo-600 hover:underline"
-              >
-                继续修改
-              </button>
+              <div className="flex items-center gap-2">
+                <ExportButtons content={result} title="论文修改方案" />
+                <button
+                  onClick={() => { setStep(1); setResult(''); setText(''); setFeedback(''); }}
+                  className="text-sm text-indigo-600 hover:underline"
+                >
+                  继续修改
+                </button>
+              </div>
             </div>
             <div className="prose prose-sm max-w-none bg-gray-50 p-4 rounded-lg border border-gray-200">
               <pre className="whitespace-pre-wrap font-sans text-sm text-gray-800">{result}</pre>

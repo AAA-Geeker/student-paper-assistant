@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, ArrowLeft, Loader2, AlertCircle, CheckCircle, Info, Coins } from 'lucide-react';
+import ExportButtons from '../components/ExportButtons';
 import { aigcRewrite, estimateAigcRewrite } from '../api/core';
 import { getProfile } from '../api/core';
 
@@ -71,8 +72,8 @@ export default function AigcPage() {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <button onClick={() => navigate('/dashboard')} className="flex items-center gap-1 text-sm text-gray-500 hover:text-indigo-600 mb-4">
-        <ArrowLeft size={16} /> 返回工作台
+      <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-sm text-gray-500 hover:text-indigo-600 mb-4">
+        <ArrowLeft size={16} /> 返回
       </button>
 
       {/* 💡 使用时机提示 */}
@@ -256,12 +257,15 @@ export default function AigcPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-gray-900">改写结果</h3>
-              <button
-                onClick={() => { setStep(1); setResult(''); setText(''); }}
-                className="text-sm text-indigo-600 hover:underline"
-              >
-                继续改写
-              </button>
+              <div className="flex items-center gap-2">
+                <ExportButtons content={result} title="降重改写结果" />
+                <button
+                  onClick={() => { setStep(1); setResult(''); setText(''); }}
+                  className="text-sm text-indigo-600 hover:underline"
+                >
+                  继续改写
+                </button>
+              </div>
             </div>
             <div className="prose prose-sm max-w-none bg-gray-50 p-4 rounded-lg border border-gray-200">
               <pre className="whitespace-pre-wrap font-sans text-sm text-gray-800">{result}</pre>
