@@ -36,7 +36,32 @@
       "Bash(ngrok http *)",
       "Bash(python -c \"import sys,json; tunnels=json.load\\(sys.stdin\\)['tunnels']; [print\\(t['public_url']\\) for t in tunnels]\")",
       "Bash(docker *)",
-      "Bash(python -c \"import sys,json; [print\\(f'  {m[\\\\\"name\\\\\"]} available={m[\\\\\"available\\\\\"]}'\\) for m in json.load\\(sys.stdin\\)['models']]\")"
+      "Bash(python -c \"import sys,json; [print\\(f'  {m[\\\\\"name\\\\\"]} available={m[\\\\\"available\\\\\"]}'\\) for m in json.load\\(sys.stdin\\)['models']]\")",
+      "Bash(git add *)",
+      "Bash(git commit -m '@ *)",
+      "Bash(git push *)",
+      "Bash(git remote *)",
+      "WebSearch",
+      "WebFetch(domain:buy.cloud.tencent.com)",
+      "Bash(ssh *)",
+      "PowerShell(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@82.156.208.86 \"echo connected\")",
+      "Bash(apt-get install *)",
+      "Bash(python3 -c \"import paramiko; print\\('paramiko available'\\)\")",
+      "Bash(python -c \"import paramiko; print\\('paramiko available'\\)\")",
+      "Bash(python3 *)",
+      "PowerShell(Test-NetConnection *)",
+      "PowerShell(python -c \"import paramiko; print\\('paramiko version:', paramiko.__version__\\)\")",
+      "PowerShell(python \"D:\\\\WorkBuddy\\\\student-paper-assistant\\\\deploy_remote.py\")",
+      "PowerShell(python \"D:\\\\WorkBuddy\\\\student-paper-assistant\\\\check_pwd.py\")",
+      "PowerShell(pip install *)",
+      "PowerShell(winget install *)",
+      "Bash(where sshpass *)",
+      "Bash(where plink *)",
+      "Read(//c/Program Files/PuTTY/**)",
+      "Read(//c/Program Files \\\\\\(x86\\\\\\)/PuTTY/**)",
+      "Read(//c/Users/LEGION/AppData/Local/Microsoft/WinGet/Links/**)",
+      "Read(//c/Users/LEGION/AppData/Local/Microsoft/WinGet/Packages/**)",
+      "PowerShell(Invoke-WebRequest -Uri \"https://github.com/xhcoding/sshpass-win32/releases/download/v1.0.7/sshpass.exe\" -OutFile \"D:\\\\WorkBuddy\\\\student-paper-assistant\\\\sshpass.exe\" 2>&1; if \\(Test-Path \"D:\\\\WorkBuddy\\\\student-paper-assistant\\\\sshpass.exe\"\\) { Write-Host \"Downloaded successfully\"; \\(Get-Item \"D:\\\\WorkBuddy\\\\student-paper-assistant\\\\sshpass.exe\"\\).Length } else { Write-Host \"Download failed\" })"
     ]
   }
 }

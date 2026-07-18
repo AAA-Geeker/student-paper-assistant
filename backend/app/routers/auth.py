@@ -7,17 +7,33 @@ from app.models.user import User
 from app.schemas.user import UserCreate, UserOut, Token
 from app.services.auth import get_password_hash, verify_password, create_access_token, decode_token
 from app.config import settings
+from app.services.credits import gift_registration_credits
 
 router = APIRouter(tags=["auth"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
-@router.post("/register", response_model=UserOut)
+
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+    payload = decode_token(token)
+    if not payload or not payload.get("sub"):
+        raise HTTPException(status_code=401, detail="Invalid token")
+    user = db.query(User).filter(User.id == int(payload["sub"])).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    return user
+
+@router.post("/register", response_model=Token)
 def register(payload: UserCreate, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == payload.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
     user = User(email=payload.email, hashed_password=get_password_hash(payload.password))
     db.add(user); db.commit(); db.refresh(user)
-    return user
+    gift_registration_credits(db, user)
+    token = create_access_token(
+        {"sub": str(user.id)},
+        timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+    return {"access_token": token, "token_type": "bearer", "user": UserOut.model_validate(user)}
 
 @router.post("/login", response_model=Token)
 def login(payload: UserCreate, db: Session = Depends(get_db)):
@@ -28,13 +44,8 @@ def login(payload: UserCreate, db: Session = Depends(get_db)):
         {"sub": str(user.id)},
         timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
-    return {"access_token": token, "token_type": "bearer"}
+    return {"access_token": token, "token_type": "bearer", "user": UserOut.model_validate(user)}
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
-    payload = decode_token(token)
-    if not payload or not payload.get("sub"):
-        raise HTTPException(status_code=401, detail="Invalid token")
-    user = db.query(User).filter(User.id == int(payload["sub"])).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    return user
+@router.get("/me", response_model=UserOut)
+def auth_me(user: User = Depends(get_current_user)):
+    return UserOut.model_validate(user)
