@@ -18,6 +18,12 @@ from app.schemas.commerce import (
     AigcRewriteRequest,
     PreSubmissionReviewRequest,
     PaperRevisionRequest,
+    ExportRequest,
+    DefenseSimulationRequest,
+    FormatCheckRequest,
+    RevisionReviewRequest,
+    LiteratureReviewRequest,
+    CnToEnRequest,
 )
 from app.services.core_features import (
     aigc_rewrite,
@@ -26,17 +32,25 @@ from app.services.core_features import (
     estimate_aigc_rewrite_cost,
     estimate_pre_submission_review_cost,
     estimate_paper_revision_cost,
+    defense_simulation,
+    format_check,
+    revision_review,
+    literature_review,
+    cn_to_en_translation,
 )
 
 router = APIRouter(tags=["core"])
 
 # 通用结果导出端点（供三大功能的结果下载使用）
 @router.post("/export")
-def export_result(data: dict):
+def export_result(
+    data: ExportRequest,
+    user: User = Depends(get_current_user),
+):
     """导出生成结果为文件。body: {content, title, format} format=md/docx/pdf"""
-    title = data.get("title", "论文助手-导出结果")
-    content = data.get("content", "")
-    fmt = data.get("format", "md")
+    title = data.title or "论文助手-导出结果"
+    content = data.content
+    fmt = data.format
 
     from app.utils.export import to_markdown, to_docx, to_pdf
 
@@ -134,3 +148,68 @@ async def revision_endpoint(
     if not req.text.strip() or not req.feedback.strip():
         raise HTTPException(status_code=400, detail="论文内容和反馈不能为空")
     return await paper_revision(req.text, req.feedback, req.style, user, db, req.urgent, req.model)
+
+
+# ─── 5. 答辩模拟 ─────────────────────────────────────────────────
+
+@router.post("/defense-simulation")
+async def defense_simulation_endpoint(
+    req: DefenseSimulationRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not req.text.strip():
+        raise HTTPException(status_code=400, detail="论文内容不能为空")
+    return await defense_simulation(req.text, user, db, req.model)
+
+
+# ─── 6. 投稿格式预检 ─────────────────────────────────────────────
+
+@router.post("/format-check")
+async def format_check_endpoint(
+    req: FormatCheckRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not req.text.strip():
+        raise HTTPException(status_code=400, detail="论文内容不能为空")
+    return await format_check(req.text, req.venue, user, db, req.model)
+
+
+# ─── 7. 改后复查 ─────────────────────────────────────────────────
+
+@router.post("/revision-review")
+async def revision_review_endpoint(
+    req: RevisionReviewRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not req.original_text.strip() or not req.revised_text.strip():
+        raise HTTPException(status_code=400, detail="原文和修改后内容不能为空")
+    return await revision_review(req.original_text, req.revised_text, req.feedback, user, db, req.model)
+
+
+# ─── 8. 文献综述生成 ─────────────────────────────────────────────
+
+@router.post("/literature-review")
+async def literature_review_endpoint(
+    req: LiteratureReviewRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not req.references.strip():
+        raise HTTPException(status_code=400, detail="文献信息不能为空")
+    return await literature_review(req.references, req.topic, user, db, req.model)
+
+
+# ─── 9. 中译英学术润色 ─────────────────────────────────────────
+
+@router.post("/cn-to-en")
+async def cn_to_en_endpoint(
+    req: CnToEnRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not req.text.strip():
+        raise HTTPException(status_code=400, detail="中文内容不能为空")
+    return await cn_to_en_translation(req.text, user, db, req.model)

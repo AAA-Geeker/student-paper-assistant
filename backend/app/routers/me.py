@@ -90,7 +90,7 @@ def top_up(req: ApplyTopUpRequest, user: User = Depends(get_current_user), db: S
 
 @router.get("/subscription-plans", response_model=List[SubscriptionPlanOut])
 def subscription_plans():
-    return [SubscriptionPlanOut.model_validate(p) for p in list_subscription_plans()]
+    return [SubscriptionPlanOut(**p) for p in list_subscription_plans()]
 
 
 @router.post("/subscribe")

@@ -58,7 +58,7 @@ def list_top_up_packages() -> List[dict]:
     ]
 
 
-def apply_top_up(db: Session, user: User, package_id: str) -> Optional[Decimal]:
+def apply_top_up(db: Session, user: User, package_id: str, pay_method: str = "alipay") -> Optional[Decimal]:
     """
     模拟充值到账（后续接入支付网关后，在回调中调用）。
     返回实际到账点数。
@@ -67,7 +67,7 @@ def apply_top_up(db: Session, user: User, package_id: str) -> Optional[Decimal]:
     if not pkg:
         return None
     total = to_decimal(pkg["credits"] + pkg["bonus"])
-    add_credits(db, user, total, "top_up", f"充值套餐：{pkg['name']}")
+    add_credits(db, user, total, "top_up", f"充值套餐：{pkg['name']}（{pay_method}）")
     return total
 
 

@@ -2,10 +2,29 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { getPaper, updatePaper, exportPaper } from '../api/papers';
+import { getPaper, updatePaper, exportPaper, createPaper } from '../api/papers';
 import { generateOutline, continueWriting, polish, generateAbstract } from '../api/ai';
 import SkillPanel from '../components/SkillPanel';
 import TokenCostIndicator from '../components/TokenCostIndicator';
+
+const TEMPLATES = [
+  {
+    icon: '📋', title: '写一篇论文大纲', desc: '让 AI 根据题目生成三级大纲 + 每节写作要点',
+    action: 'outline', prompt: '为一篇计算机科学领域的论文生成详细大纲',
+  },
+  {
+    icon: '📝', title: '写一段摘要', desc: '根据论文内容，AI 自动生成结构化的学术摘要',
+    action: 'abstract', prompt: '',
+  },
+  {
+    icon: '📄', title: '起草一个章节', desc: '告诉 AI 要写什么，从 Introduction 到 Conclusion',
+    action: 'continue', prompt: '请根据论文大纲起草该章节的详细内容，保持学术风格',
+  },
+  {
+    icon: '✏️', title: '润色一段文字', desc: '把写好的段落贴进来，AI 提升表达和学术性',
+    action: 'polish', prompt: '学术',
+  },
+];
 
 export default function Editor() {
   const { id } = useParams<{ id: string }>();
@@ -16,10 +35,12 @@ export default function Editor() {
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const [aiModel, setAiModel] = useState('deepseek');
+  const [isNew, setIsNew] = useState(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id || id === 'new') return;
+    setIsNew(false);
     getPaper(Number(id)).then((res) => {
       setTitle(res.data.title);
       setContent(res.data.content);
@@ -60,7 +81,7 @@ export default function Editor() {
 
   // 旧版快速 AI 按钮（保留兼容）
   const handleAi = async (type: 'outline' | 'continue' | 'polish' | 'abstract') => {
-    if (!id) return; setAiLoading(true);
+    setAiLoading(true);
     try {
       let res;
       if (type === 'outline') res = await generateOutline(title, aiPrompt, aiModel);
@@ -114,7 +135,62 @@ export default function Editor() {
           </button>
         </div>
 
-        {/* 编辑/预览切换 */}
+        {/* ─── 新建论文空状态引导 ─── */}
+        {isNew && !content && (
+          <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-6 space-y-5">
+            <div className="text-center">
+              <div className="text-4xl mb-2">📄</div>
+              <h3 className="text-lg font-bold text-gray-900">开始写你的论文</h3>
+              <p className="text-sm text-gray-500 mt-1 max-w-md mx-auto">
+                这是一个在线论文编辑器，支持 Markdown 语法。你可以直接在这里写，也可以用右侧的 AI 助手快速生成内容。
+              </p>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {TEMPLATES.map((t) => (
+                <button
+                  key={t.action}
+                  onClick={async () => {
+                    setIsNew(false);
+                    // 自动创建论文记录并跳转到新ID
+                    try {
+                      const res = await createPaper({ title: '我的论文' });
+                      const newId = res.data.id;
+                      // 把当前 URL 换成 /editor/{newId}
+                      window.history.replaceState(null, '', `/editor/${newId}`);
+                      // 从 url param 重新加载 paper 数据
+                      setContent(''); // 清除后等 handleAi 填充
+                      if (t.action === 'outline') { setTitle('我的论文'); }
+                      // 保存引用以便后续修改
+                      (window as any).__paperId = newId;
+                      handleAi(t.action as any);
+                    } catch {
+                      // fallback: 直接使用 AI
+                      if (t.action === 'outline') { setTitle('我的论文'); }
+                      handleAi(t.action as any);
+                    }
+                  }}
+                  className="bg-white rounded-xl border border-gray-200 p-3 text-left hover:shadow-md hover:-translate-y-0.5 transition-all"
+                >
+                  <div className="text-2xl mb-1">{t.icon}</div>
+                  <div className="text-sm font-semibold text-gray-900">{t.title}</div>
+                  <div className="text-xs text-gray-500 mt-0.5">{t.desc}</div>
+                </button>
+              ))}
+            </div>
+            <div className="text-center">
+              <button
+                onClick={() => setIsNew(false)}
+                className="text-sm text-indigo-600 hover:text-indigo-800 hover:underline"
+              >
+                或者，从空白开始手动写 →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 编辑/预览切换（新建空状态时不显示） */}
+        {(!isNew || content) && (
+        <>
         <div className="flex gap-2 border-b pb-2">
           <button
             onClick={() => setActiveTab('edit')}
@@ -208,6 +284,7 @@ export default function Editor() {
           </button>
           {aiLoading && <span className="text-xs text-indigo-600 animate-pulse">AI 思考中...</span>}
         </div>
+      </>)}
       </div>
 
       {/* 右侧面板 */}

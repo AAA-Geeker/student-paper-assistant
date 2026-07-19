@@ -114,3 +114,20 @@ export const getTopUpPackages = () => client.get<{ packages: TopUpPackage[] }>('
 export const topUp = (package_id: string) => client.post('/me/top-up', { package_id });
 export const getSubscriptionPlans = () => client.get<{ plans: SubscriptionPlan[] }>('/me/subscription-plans');
 export const subscribe = (plan: string) => client.post('/me/subscribe', { plan });
+
+// ─── 辅助功能 API ──────────────────────────────────────────────
+
+export const defenseSimulation = (data: { text: string; model?: string }) =>
+  client.post<{ type: string; original_length: number; result: string }>('/core/defense-simulation', data);
+
+export const formatCheck = (data: { text: string; venue?: string; model?: string }) =>
+  client.post<{ type: string; venue: string; original_length: number; result: string }>('/core/format-check', data);
+
+export const revisionReview = (data: { original_text: string; revised_text: string; feedback: string; model?: string }) =>
+  client.post<{ type: string; original_length: number; revised_length: number; result: string }>('/core/revision-review', data);
+
+export const literatureReview = (data: { references: string; topic?: string; model?: string }) =>
+  client.post<{ type: string; topic: string; reference_count: number; result: string }>('/core/literature-review', data);
+
+export const cnToEn = (data: { text: string; model?: string }) =>
+  client.post<{ type: string; original_length: number; result: string }>('/core/cn-to-en', data);

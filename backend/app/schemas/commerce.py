@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from decimal import Decimal
 from typing import Optional, List
 from datetime import datetime
@@ -78,6 +78,8 @@ class SubscriptionPlanOut(BaseModel):
     discount_percent: int
     description: str
 
+    model_config = ConfigDict(from_attributes=True)
+
 
 class SubscriptionOut(BaseModel):
     plan: str
@@ -96,3 +98,38 @@ class ApplyTopUpRequest(BaseModel):
 
 class ApplySubscriptionRequest(BaseModel):
     plan: str  # free / pro / premium
+
+
+class ExportRequest(BaseModel):
+    content: str
+    title: str = "论文助手-导出结果"
+    format: str = "md"  # md / docx / pdf
+
+
+class DefenseSimulationRequest(BaseModel):
+    text: str
+    model: str = "deepseek"
+
+
+class FormatCheckRequest(BaseModel):
+    text: str
+    venue: str = "ACL"  # ACL / IEEE / CSSCI / 国内核心
+    model: str = "deepseek"
+
+
+class RevisionReviewRequest(BaseModel):
+    original_text: str
+    revised_text: str
+    feedback: str
+    model: str = "deepseek"
+
+
+class LiteratureReviewRequest(BaseModel):
+    references: str
+    topic: str = ""
+    model: str = "deepseek"
+
+
+class CnToEnRequest(BaseModel):
+    text: str
+    model: str = "deepseek"

@@ -3,8 +3,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from app.database import engine, Base
+from app.database import engine, Base, SessionLocal
 from app.routers import auth, papers, ai, me, core
+from app.services.credits import auto_downgrade_expired_subscriptions
 
 Base.metadata.create_all(bind=engine)
 
@@ -17,6 +18,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 应用启动时自动降级已过期的订阅
+@app.on_event("startup")
+def startup_downgrade():
+    db = SessionLocal()
+    try:
+        count = auto_downgrade_expired_subscriptions(db)
+        if count > 0:
+            print(f"[startup] 已降级 {count} 个过期订阅")
+    except Exception as e:
+        print(f"[startup] 订阅降级检查失败 (非关键): {e}")
+    finally:
+        db.close()
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(papers.router, prefix="/api/papers", tags=["papers"])

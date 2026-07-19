@@ -204,41 +204,77 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* 辅助功能快捷入口 */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <button
-          onClick={() => navigate('/editor/new')}
-          className="bg-white rounded-xl border border-gray-200 p-4 text-left hover:shadow-md hover:-translate-y-0.5 transition-all"
-        >
-          <div className="text-2xl mb-1">✍️</div>
-          <div className="text-sm font-medium text-gray-900">新建论文</div>
-          <div className="text-xs text-gray-400">从零开始写一篇新论文</div>
-        </button>
-        <button
-          onClick={() => { navigate('/aigc'); }}
-          className="bg-white rounded-xl border border-gray-200 p-4 text-left hover:shadow-md hover:-translate-y-0.5 transition-all"
-        >
-          <div className="text-2xl mb-1">📝</div>
-          <div className="text-sm font-medium text-gray-900">论文润色</div>
-          <div className="text-xs text-gray-400">提升语言表达</div>
-        </button>
-        <button
-          onClick={() => navigate('/revision')}
-          className="bg-white rounded-xl border border-gray-200 p-4 text-left hover:shadow-md hover:-translate-y-0.5 transition-all"
-        >
-          <div className="text-2xl mb-1">🔄</div>
-          <div className="text-sm font-medium text-gray-900">修改复查</div>
-          <div className="text-xs text-gray-400">改后复查是否达标</div>
-        </button>
-        <button
-          onClick={() => { navigate('/review'); }}
-          className="bg-white rounded-xl border border-gray-200 p-4 text-left hover:shadow-md hover:-translate-y-0.5 transition-all"
-        >
-          <div className="text-2xl mb-1">🎤</div>
-          <div className="text-sm font-medium text-gray-900">答辩准备</div>
-          <div className="text-xs text-gray-400">模拟答辩提问</div>
-        </button>
-      </div>
+      {/* 辅助功能快捷入口（折叠式，不抢三大核心注意力） */}
+      <details className="bg-white rounded-xl border border-gray-200 group">
+        <summary className="flex items-center justify-between px-4 py-3 cursor-pointer text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-xl transition-colors">
+          <span className="flex items-center gap-2">
+            <span className="text-base">🔧</span>
+            <span className="font-medium">其他辅助功能</span>
+            <span className="text-xs text-gray-400">论文润色 · 修改复查 · 答辩准备 · 新建论文</span>
+          </span>
+          <span className="text-gray-300 group-open:rotate-180 transition-transform">▼</span>
+        </summary>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-4 pb-4 border-t border-gray-100 pt-3">
+          <button
+            onClick={() => navigate('/editor/new')}
+            className="bg-white rounded-lg border border-gray-200 p-3 text-left hover:shadow-sm hover:-translate-y-0.5 transition-all"
+          >
+            <div className="text-xl mb-1">✍️</div>
+            <div className="text-sm font-medium text-gray-900">新建论文</div>
+            <div className="text-xs text-gray-400">从零开始写一篇新论文</div>
+          </button>
+          <button
+            onClick={() => navigate('/aigc')}
+            className="bg-white rounded-lg border border-gray-200 p-3 text-left hover:shadow-sm hover:-translate-y-0.5 transition-all"
+          >
+            <div className="text-xl mb-1">📝</div>
+            <div className="text-sm font-medium text-gray-900">论文润色</div>
+            <div className="text-xs text-gray-400">AI 润色提升语言表达</div>
+          </button>
+          <button
+            onClick={() => navigate('/aux/revision-review')}
+            className="bg-white rounded-lg border border-gray-200 p-3 text-left hover:shadow-sm hover:-translate-y-0.5 transition-all"
+          >
+            <div className="text-xl mb-1">✅</div>
+            <div className="text-sm font-medium text-gray-900">改后复查</div>
+            <div className="text-xs text-gray-400">对照意见判断修改是否达标</div>
+          </button>
+          <button
+            onClick={() => navigate('/aux/defense-simulation')}
+            className="bg-white rounded-lg border border-gray-200 p-3 text-left hover:shadow-sm hover:-translate-y-0.5 transition-all"
+          >
+            <div className="text-xl mb-1">🎤</div>
+            <div className="text-sm font-medium text-gray-900">答辩模拟</div>
+            <div className="text-xs text-gray-400">模拟答辩委员会提问</div>
+          </button>
+          <button
+            onClick={() => navigate('/aux/format-check')}
+            className="bg-white rounded-lg border border-gray-200 p-3 text-left hover:shadow-sm hover:-translate-y-0.5 transition-all"
+          >
+            <div className="text-xl mb-1">📐</div>
+            <div className="text-sm font-medium text-gray-900">格式预检</div>
+            <div className="text-xs text-gray-400">按期刊模板规范格式</div>
+          </button>
+          <button
+            onClick={() => navigate('/aux/literature-review')}
+            className="bg-white rounded-lg border border-gray-200 p-3 text-left hover:shadow-sm hover:-translate-y-0.5 transition-all"
+          >
+            <div className="text-xl mb-1">📚</div>
+            <div className="text-sm font-medium text-gray-900">文献综述</div>
+            <div className="text-xs text-gray-400">输入文献 AI 生成综述段落</div>
+          </button>
+          <button
+            onClick={() => navigate('/aux/cn-to-en')}
+            className="bg-white rounded-lg border border-gray-200 p-3 text-left hover:shadow-sm hover:-translate-y-0.5 transition-all"
+          >
+            <div className="text-xl mb-1">🌐</div>
+            <div className="text-sm font-medium text-gray-900">中译英</div>
+            <div className="text-xs text-gray-400">中文论文翻译为学术英文</div>
+          </button>
+          {/* 占位保持 4 列对齐 */}
+          <div />
+        </div>
+      </details>
 
       {/* 使用提示 */}
       <div className="bg-gray-50 rounded-xl border border-gray-200 p-5">

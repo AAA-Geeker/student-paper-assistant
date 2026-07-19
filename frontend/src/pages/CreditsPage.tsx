@@ -16,6 +16,8 @@ export default function CreditsPage() {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
   const [payMethod, setPayMethod] = useState<'alipay' | 'wechat'>('alipay');
+  const [selectedPkg, setSelectedPkg] = useState<TopUpPackage | null>(null);
+  const [showPayDialog, setShowPayDialog] = useState(false);
   const [selectedCycle, setSelectedCycle] = useState<'monthly' | 'yearly'>('monthly');
 
   useEffect(() => {
@@ -33,21 +35,31 @@ export default function CreditsPage() {
     .finally(() => setLoading(false));
   }, []);
 
-  const handleTopUp = async (pkgId: string) => {
-    setProcessing(pkgId);
+  const handleTopUp = async (pkg: TopUpPackage) => {
+    // 打开模拟支付弹窗
+    setSelectedPkg(pkg);
+    setShowPayDialog(true);
+  };
+
+  const confirmPayment = async () => {
+    if (!selectedPkg) return;
+    setProcessing(selectedPkg.id);
+    setShowPayDialog(false);
     try {
-      const res = await topUp(pkgId);
+      const res = await topUp(selectedPkg.id);
       addToast('ok', `充值成功！到账 ${res.data.credits_added.toFixed(0)} 点，当前余额 ${res.data.balance.toFixed(0)} 点`);
       setProfile(prev => prev ? { ...prev, credits: res.data.balance } : null);
     } catch {
       addToast('err', '充值失败，请重试');
     } finally {
       setProcessing(null);
+      setSelectedPkg(null);
     }
   };
 
-  const handleSubscribe = async (plan: string, isYearly: boolean) => {
-    setProcessing(`${plan}-${isYearly ? 'yearly' : 'monthly'}`);
+  const handleSubscribe = async (plan: string) => {
+    const isYearly = selectedCycle === 'yearly';
+    setProcessing(`${plan}-${selectedCycle}`);
     try {
       const res = await subscribe(plan);
       const label = isYearly ? `${res.data.subscription.plan_label}(年付)` : res.data.subscription.plan_label;
@@ -143,7 +155,7 @@ export default function CreditsPage() {
                     </div>
                   )}
                   <button
-                    onClick={() => handleTopUp(pkg.id)}
+                    onClick={() => handleTopUp(pkg)}
                     disabled={processing === pkg.id}
                     className="w-full py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-60 flex items-center justify-center gap-2"
                   >
@@ -182,6 +194,59 @@ export default function CreditsPage() {
             </div>
             <p className="text-xs text-gray-400 mt-2">💡 当前为模拟充值，支付网关接入后自动跳转</p>
           </div>
+
+          {/* ─── 模拟支付弹窗 ─── */}
+          {showPayDialog && selectedPkg && (
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowPayDialog(false)}>
+              <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+                <div className="text-center mb-4">
+                  <div className="text-5xl mb-3">{payMethod === 'alipay' ? '💳' : '💚'}</div>
+                  <h3 className="text-lg font-bold text-gray-900">模拟支付</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    支付方式：{payMethod === 'alipay' ? '支付宝' : '微信支付'}
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-4 mb-4 text-sm space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">套餐</span>
+                    <span className="font-medium">{selectedPkg.name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">到账点数</span>
+                    <span className="font-medium text-indigo-600">{selectedPkg.total_credits} 点</span>
+                  </div>
+                  {selectedPkg.bonus > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">赠送</span>
+                      <span className="font-medium text-emerald-600">+{selectedPkg.bonus} 点</span>
+                    </div>
+                  )}
+                  <div className="border-t pt-2 flex justify-between">
+                    <span className="text-gray-800 font-medium">金额</span>
+                    <span className="text-xl font-bold text-red-600">¥{selectedPkg.price_rmb}</span>
+                  </div>
+                </div>
+                <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 mb-4 text-center">
+                  <p className="text-xs text-indigo-600 font-medium">🔔 模拟模式</p>
+                  <p className="text-xs text-indigo-500 mt-0.5">接入真实支付网关后将跳转到支付页面</p>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => { setShowPayDialog(false); setSelectedPkg(null); }}
+                    className="flex-1 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={confirmPayment}
+                    className="flex-1 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700"
+                  >
+                    确认支付 ¥{selectedPkg.price_rmb}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -275,7 +340,7 @@ export default function CreditsPage() {
                   </div>
 
                   <button
-                    onClick={() => handleSubscribe(plan.id, selectedCycle === 'yearly')}
+                    onClick={() => handleSubscribe(plan.id)}
                     disabled={processing === `${plan.id}-${selectedCycle}` || isActive}
                     className={`w-full py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 ${
                       isActive

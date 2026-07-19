@@ -276,3 +276,247 @@ async def estimate_skill_usage_cost(model: str, input_text: str, output_text: st
     in_tokens = estimate_tokens(input_text)
     out_tokens = estimate_tokens(output_text) if output_text else in_tokens
     return float(estimate_usd_cost(model, in_tokens, out_tokens))
+
+
+# ─── 5. 答辩模拟 ──────────────────────────────────────────────────
+
+async def defense_simulation(
+    paper_text: str,
+    user: User,
+    db: Session,
+    model: str = "deepseek",
+) -> Dict:
+    """模拟答辩委员会提问，帮助用户准备答辩。"""
+    async def runner() -> Dict:
+        system = "你是一位资深论文答辩委员会成员，熟悉本科/硕士/博士学位论文答辩流程。"
+        prompt = f"""请根据以下论文内容，模拟答辩委员会提问。
+
+论文内容：
+{paper_text}
+
+请生成：
+
+## 答辩模拟报告
+
+### 1. 论文亮点总结（3-5 点）
+### 2. 可能被问到的问题（10-15 个，按可能性排序）
+- 每个问题标注：难度（⭐/⭐⭐/⭐⭐⭐）、考察点、建议回答思路
+### 3. 可能的致命问题（2-3 个）
+- 如果回答不好可能直接影响答辩结果的问题
+### 4. 准备建议
+- 需要提前准备的数据、图表、文献
+"""
+        result = await call_llm_with_config(model, [
+            {"role": "system", "content": system},
+            {"role": "user", "content": prompt},
+        ])
+        return {
+            "type": "defense_simulation",
+            "original_length": len(paper_text),
+            "result": result,
+        }
+
+    return await deduct_and_run(db, user, "aigc_rewrite", len(paper_text), False, runner)
+
+
+# ─── 6. 投稿格式预检 ─────────────────────────────────────────────
+
+async def format_check(
+    paper_text: str,
+    venue: str,  # ACL / IEEE / CSSCI 等
+    user: User,
+    db: Session,
+    model: str = "deepseek",
+) -> Dict:
+    """检查论文格式是否符合目标期刊/会议要求。"""
+    async def runner() -> Dict:
+        system = "你是一位学术期刊/会议格式审查专家。"
+        prompt = f"""请检查以下论文内容是否符合 {venue} 的格式要求。
+
+论文内容：
+{paper_text}
+
+请按以下维度输出检查报告：
+
+## 格式检查报告
+
+### 1. 结构完整性
+- 是否包含标准章节（摘要、Introduction、方法、实验、结论）
+- 章节顺序是否合理
+
+### 2. 引用格式
+- 引用格式是否一致
+- 是否缺失参考文献
+
+### 3. 图表与公式
+- 图表编号是否连续
+- 公式格式是否规范
+
+### 4. 语言与排版
+- 标题层级是否正确
+- 段落缩进、行距等
+
+### 5. 问题清单
+- 🔴 必须修改
+- 🟡 建议修改
+- 🟢 可优化
+"""
+        result = await call_llm_with_config(model, [
+            {"role": "system", "content": system},
+            {"role": "user", "content": prompt},
+        ])
+        return {
+            "type": "format_check",
+            "venue": venue,
+            "original_length": len(paper_text),
+            "result": result,
+        }
+
+    return await deduct_and_run(db, user, "aigc_rewrite", len(paper_text), False, runner)
+
+
+# ─── 7. 改后复查 ─────────────────────────────────────────────────
+
+async def revision_review(
+    original_text: str,
+    revised_text: str,
+    feedback: str,
+    user: User,
+    db: Session,
+    model: str = "deepseek",
+) -> Dict:
+    """修改完成后，AI 对照反馈意见判断是否达标。"""
+    async def runner() -> Dict:
+        system = "你是一位严谨的学术导师，检查学生是否已经按反馈意见修改到位。"
+        prompt = f"""请对照反馈意见，检查修改是否到位。
+
+## 反馈意见
+{feedback}
+
+## 修改前原文
+{original_text}
+
+## 修改后版本
+{revised_text}
+
+请输出复查报告：
+
+## 复查报告
+
+### 1. 逐条反馈对照
+每条反馈意见 → 是否已修改 → 修改是否到位（✅ 达标 / ⚠️ 部分达标 / ❌ 未修改）
+
+### 2. 总体评价
+- 修改完成度（百分比）
+- 修改质量（优/良/中/差）
+
+### 3. 遗留问题
+- 仍然存在的问题或可以继续改进的点
+"""
+        result = await call_llm_with_config(model, [
+            {"role": "system", "content": system},
+            {"role": "user", "content": prompt},
+        ])
+        return {
+            "type": "revision_review",
+            "original_length": len(original_text),
+            "revised_length": len(revised_text),
+            "result": result,
+        }
+
+    return await deduct_and_run(db, user, "aigc_rewrite", len(original_text) + len(revised_text), False, runner)
+
+
+# ─── 8. 文献综述生成 ─────────────────────────────────────────────
+
+async def literature_review(
+    references: str,  # 文献标题/摘要列表，每行一篇
+    topic: str,       # 主题
+    user: User,
+    db: Session,
+    model: str = "deepseek",
+) -> Dict:
+    """输入 5-10 篇文献标题/摘要，AI 生成综述段落。"""
+    async def runner() -> Dict:
+        system = "你是一位学术文献综述专家，擅长归纳和对比相关研究工作。"
+        prompt = f"""请根据以下文献信息，生成一段学术文献综述。
+
+主题：{topic}
+
+文献：
+{references}
+
+要求：
+1. 按主题/方法分类组织（不要逐篇总结）
+2. 指出各类方法的优劣势和适用场景
+3. 识别 research gap
+4. 说明你的工作如何填补该 gap（如果有）
+5. 引用格式用 [1], [2] 等标注
+
+请输出：
+
+## 文献综述
+（学术风格，500-1000 字）
+
+## 分类总结
+（表格形式：类别 | 代表工作 | 方法特点 | 局限性）
+
+## Research Gap 分析
+"""
+        result = await call_llm_with_config(model, [
+            {"role": "system", "content": system},
+            {"role": "user", "content": prompt},
+        ])
+        return {
+            "type": "literature_review",
+            "topic": topic,
+            "reference_count": len(references.strip().split('\n')),
+            "result": result,
+        }
+
+    return await deduct_and_run(db, user, "aigc_rewrite", len(references) + len(topic), False, runner)
+
+
+# ─── 9. 中译英学术润色 ─────────────────────────────────────────
+
+async def cn_to_en_translation(
+    chinese_text: str,
+    user: User,
+    db: Session,
+    model: str = "deepseek",
+) -> Dict:
+    """中文论文翻译为学术英文，保留术语和风格。"""
+    async def runner() -> Dict:
+        system = "你是一位中英学术翻译专家，擅长将中文论文翻译为地道的学术英文。"
+        prompt = f"""请将以下中文论文内容翻译为学术英文。
+
+中文原文：
+{chinese_text}
+
+要求：
+1. 翻译为地道的学术英语
+2. 保留所有专业术语（首次出现时标注中文对照）
+3. 不改变原意、数据、结论
+4. 保持学术严谨风格
+5. 使用标准学术英语表达
+
+请输出：
+
+## English Translation
+（全文英文翻译）
+
+## 翻译说明
+- 术语对照表（中文 → 英文）
+- 翻译难点说明（如有）
+"""
+        result = await call_llm_with_config(model, [
+            {"role": "system", "content": system},
+            {"role": "user", "content": prompt},
+        ])
+        return {
+            "type": "cn_to_en_translation",
+            "original_length": len(chinese_text),
+            "result": result,
+        }
+
+    return await deduct_and_run(db, user, "aigc_rewrite", len(chinese_text), False, runner)

@@ -211,3 +211,25 @@ def get_subscription_info(user: User) -> dict:
         "is_active": not expired,
         "is_premium": user.is_premium,
     }
+
+
+def auto_downgrade_expired_subscriptions(db: Session) -> int:
+    """
+    检查所有已过期的付费订阅，将其降级为 free。
+    返回被降级的用户数。建议在应用启动时 + 定时任务调用。
+    """
+    now = datetime.utcnow()
+    expired_users = db.query(User).filter(
+        User.subscription_plan.in_(["pro", "premium"]),
+        User.subscription_expires_at.isnot(None),
+        User.subscription_expires_at < now,
+    ).all()
+    count = 0
+    for u in expired_users:
+        u.subscription_plan = "free"
+        u.is_premium = False
+        u.subscription_expires_at = None
+        count += 1
+    if count > 0:
+        db.commit()
+    return count
