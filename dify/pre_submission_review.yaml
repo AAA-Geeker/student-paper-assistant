@@ -1,0 +1,113 @@
+# 投稿前审查工作流 — Dify DSL (可导入)
+# 用途：pre_submission_review 场景。后端 core_features.pre_submission_review 在
+#       DIFY_ENABLED=true 且 DIFY_WORKFLOW_IDS["pre_submission_review"] 配了 id 时调用。
+# 输入变量（与后端发送一致）：text(段落), venue(文本), venue_type(文本)
+# 输出：result = {{#review.text#}}
+# ⚠️ 导入前把 model.provider 从 -provider-id- 改成你 Dify 里实际的 provider id，
+#    model.name 改成你要用的模型（默认 deepseek-r1:8b，建议非推理模型如 deepseek-chat/qwen）。
+app:
+  mode: workflow
+  name: 投稿前审查工作流
+  description: 解析论文 → 多维度审稿人审查 → 生成带优先级的审稿报告
+  icon_type: emoji
+  icon: 🧐
+workflow:
+  id: pre-submission-review
+  title: 投稿前审查工作流
+  type: workflow
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      enabled: false
+  graph:
+    viewport:
+      x: 0
+      y: 0
+      zoom: 0.8
+    nodes:
+      - id: start
+        type: start
+        title: 开始
+        position: { x: 0, y: 100 }
+        data:
+          type: start
+          title: 开始
+          variables:
+            - variable: text
+              label: 论文内容
+              required: true
+              type: paragraph
+            - variable: venue
+              label: 目标期刊/会议
+              required: true
+              type: paragraph
+            - variable: venue_type
+              label: 类型(期刊/会议)
+              required: true
+              type: paragraph
+          advanced_settings:
+            files: []
+      - id: review
+        type: llm
+        title: 智能审查
+        position: { x: 280, y: 100 }
+        data:
+          type: llm
+          title: 智能审查
+          desc: 模拟审稿人输出结构化审查报告
+          model:
+            provider: -provider-id-
+            name: deepseek-r1:8b
+            mode: chat
+            completion_params:
+              temperature: 0.3
+          prompt_template:
+            - role: system
+              text: 你是一位严谨的学术审稿人，根据目标期刊/会议的标准输出结构化审稿报告。
+            - role: user
+              text: >-
+                请对以下论文进行投稿前审查，模拟 {{#start.venue#}} ({{#start.venue_type#}}) 审稿人视角。
+
+                论文内容：
+                {{#start.text#}}
+
+                请按以下维度输出：
+                ## 1. 总体评价（贡献度/创新性/写作质量 1-5 分，推荐意见 Accept/Weak Accept/Borderline/Reject）
+                ## 2. 结构审查
+                ## 3. 论证审查（每个 claim 是否有证据、是否 overclaim、基线/消融是否充分）
+                ## 4. 语言与格式
+                ## 5. 修改优先级清单（Critical/Major/Minor）
+
+                请直接输出完整的审稿报告 Markdown，不要任何前置说明。
+          outputs:
+            - variable: text
+          memory: null
+          context:
+            enabled: false
+      - id: end
+        type: answer
+        title: 输出
+        position: { x: 560, y: 100 }
+        data:
+          type: answer
+          title: 输出
+          value:
+            - type: variable
+              value: '{{#review.text#}}'
+          outputs:
+            - variable: result
+              value: '{{#review.text#}}'
+    edges:
+      - id: e0
+        source: start
+        target: review
+        type: normal
+        sourceHandle: source
+        targetHandle: target
+      - id: e1
+        source: review
+        target: end
+        type: normal
+        sourceHandle: source
+        targetHandle: target

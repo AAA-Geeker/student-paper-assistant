@@ -1,0 +1,120 @@
+# 论文修改工作流 — Dify DSL (可导入)
+# 用途：paper_revision 场景。后端 core_features.paper_revision 在
+#       DIFY_ENABLED=true 且 DIFY_WORKFLOW_IDS["paper_revision"] 配了 id 时调用。
+# 输入变量（与后端发送一致）：text(段落), feedback(段落), style(文本)
+# 输出：result = {{#revision.text#}}
+# ⚠️ 导入前把 model.provider 从 -provider-id- 改成你 Dify 里实际的 provider id。
+app:
+  mode: workflow
+  name: 论文修改工作流
+  description: 解析导师/审稿反馈 → 逐条修改 → 整合输出修改后全文
+  icon_type: emoji
+  icon: ✏️
+workflow:
+  id: paper-revision
+  title: 论文修改工作流
+  type: workflow
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      enabled: false
+  graph:
+    viewport:
+      x: 0
+      y: 0
+      zoom: 0.8
+    nodes:
+      - id: start
+        type: start
+        title: 开始
+        position: { x: 0, y: 100 }
+        data:
+          type: start
+          title: 开始
+          variables:
+            - variable: text
+              label: 论文内容
+              required: true
+              type: paragraph
+            - variable: feedback
+              label: 导师/审稿反馈
+              required: true
+              type: paragraph
+            - variable: style
+              label: 修改风格要求
+              required: true
+              type: paragraph
+          advanced_settings:
+            files: []
+      - id: revision
+        type: llm
+        title: 智能修改
+        position: { x: 280, y: 100 }
+        data:
+          type: llm
+          title: 智能修改
+          desc: 按反馈逐条解析并生成修改后的全文
+          model:
+            provider: -provider-id-
+            name: deepseek-r1:8b
+            mode: chat
+            completion_params:
+              temperature: 0.4
+          prompt_template:
+            - role: system
+              text: 你是一位有经验的学术论文写作导师，能够逐条落实评审反馈并输出修改后的全文。
+            - role: user
+              text: >-
+                请根据以下导师/审稿人反馈，对论文内容生成修改方案并改写。
+
+                修改风格：{{#start.style#}}
+
+                反馈内容：
+                {{#start.feedback#}}
+
+                论文内容：
+                {{#start.text#}}
+
+                要求：
+                1. 先逐条解析反馈，给出修改条目
+                2. 再给出修改后的全文
+                3. 保持学术性和数据结论不变，不要添加新的未经验证的数据
+
+                输出格式：
+                ## 反馈解析
+                ## 修改后的全文
+                ## 修改说明
+
+                请直接输出结果，不要任何前置说明。
+          outputs:
+            - variable: text
+          memory: null
+          context:
+            enabled: false
+      - id: end
+        type: answer
+        title: 输出
+        position: { x: 560, y: 100 }
+        data:
+          type: answer
+          title: 输出
+          value:
+            - type: variable
+              value: '{{#revision.text#}}'
+          outputs:
+            - variable: result
+              value: '{{#revision.text#}}'
+    edges:
+      - id: e0
+        source: start
+        target: revision
+        type: normal
+        sourceHandle: source
+        targetHandle: target
+      - id: e1
+        source: revision
+        target: end
+        type: normal
+        sourceHandle: source
+        targetHandle: target

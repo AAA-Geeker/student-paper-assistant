@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from app.database import engine, Base, SessionLocal
-from app.routers import auth, papers, ai, me, core
+from app.routers import auth, papers, ai, me, core, payment
 from app.services.credits import auto_downgrade_expired_subscriptions
 
 Base.metadata.create_all(bind=engine)
@@ -37,6 +37,7 @@ app.include_router(papers.router, prefix="/api/papers", tags=["papers"])
 app.include_router(ai.router, prefix="/api/ai", tags=["ai"])
 app.include_router(me.router, prefix="/api/me", tags=["me"])
 app.include_router(core.router, prefix="/api/core", tags=["core"])
+app.include_router(payment.router, prefix="/api/me", tags=["payment"])
 
 
 @app.get("/api/health")

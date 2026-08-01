@@ -334,6 +334,114 @@ async def improve_introduction_hook(intro_text: str, model: str = "gpt-4o-mini")
     ])
 
 
+# ─── 去 AI 痕迹改写（降重核心，替代 Dify）─────────────────────────
+
+SYSTEM_PROMPT_DEAI = (
+    "你是一名资深学术论文撰写者，负责把一段文本重写成自然、像人类研究生亲手写作的中文学术"
+    "段落。\n"
+    "硬性要求：\n"
+    "1. 只输出改写后的段落正文，开头不写\"好的/首先/当然\"等，结尾不写\"总之/综上所述/希望对"
+    "你有帮助\"等，禁止任何元话语、解释或寒暄。\n"
+    "2. 仅依据给定原文改写，忠实保留其中的方法名称、数据、结论，不得编造、新增或删改事实。\n"
+    "3. 消除 AI 高频特征：避免\"值得注意的是/毫无疑问/值得注意的是/综上所述/本文提出了一种\""
+    "这类套话；避免呆板排比和机械三次重复；避免连续多句以\"该/其/它\"起头；让句子长短错落、"
+    "逻辑自然流动。\n"
+    "4. 使用客观、凝练、符合中文理工科论文语体的表达，研究过程可用\"我们\"叙述。\n"
+    "5. 直接给出最终结果，不要列出任何步骤说明。\n"
+    "6. 禁止输出任何 Markdown 或排版符号：#、*、**、-、>、1. 2. 等数字编号、竖线表格等一律不用；"
+    "需要分段小标题时直接写纯文本标题（如\"反馈解析\"），列表改用通顺的叙述或分号衔接，"
+    "不要用符号做项目符号或标题前缀。"
+)
+
+
+async def de_ai_rewrite(
+    text: str,
+    target: str = "plagiarism",
+    model: str = "deepseek",
+    temperature: float = 0.6,
+) -> str:
+    """去 AI 痕迹改写：强约束地把文本改写成像人类写作的学术段落（降重/降AIGC 核心）。
+
+    target: 'plagiarism'(降重) / 'aigc'(降AIGC) / 其它(同时)。
+    返回改写后的文本（不包含任何 AI 元话语）。"""
+    target_cn = {"plagiarism": "降低重复率", "aigc": "降低AIGC检测率"}.get(target, "同时降低重复率和AIGC检测率")
+    prompt = (
+        f"请把下面的段落改写为去除了机器痕迹、自然学术风格的中文。本次改写目标：{target_cn}。"
+        f"仅输出改写后的段落，不要任何额外说明。\n\n{text}"
+    )
+    return await call_llm_with_config(
+        model,
+        [
+            {"role": "system", "content": SYSTEM_PROMPT_DEAI},
+            {"role": "user", "content": prompt},
+        ],
+        temperature=temperature,
+    )
+
+
+async def de_ai_task(
+    instruction: str,
+    content: str,
+    model: str = "deepseek",
+    temperature: float = 0.6,
+) -> str:
+    """通用去 AI 痕迹任务生成：按给定指令处理输入内容，产出自然、专业、像人写的文本。
+
+    用于论文修改/导师批注/审稿回复等"基于输入产出结果"的场景。
+    补充了 SYSTEM_PROMPT_DEAI 的去 AI 规矩，并允许任务自带结构要求。
+    """
+    system = SYSTEM_PROMPT_DEAI + (
+        "\n补充：\n"
+        "7. 即使任务文字里出现\"## xxx\"、\"| 表格 |\"等结构提示，也一律把它们转成纯文本小标题"
+        "或自然叙述，不得输出 #、*、-、数字编号、竖线等排版符号；需要列要点时用通顺的句子分行书写。\n"
+        "8. 涉及修改原文时，只基于给定原文与其批注/意见动手，不新增事实，保留原意与数据。"
+    )
+    prompt = f"{instruction}\n\n{content}\n\n请直接输出结果，不要任何额外说明。"
+    return await call_llm_with_config(
+        model,
+        [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
+        temperature=temperature,
+    )
+
+
+SYSTEM_PROMPT_REV = (
+    "你是一位资深、挑剔、经验丰富的学术会议/期刊审稿人，正在撰写一篇投稿的审稿报告。\n"
+    "硬性要求：\n"
+    "1. 用语客观、专业、克制，像认真读完论文的老练审稿人，不使用\"本文亮点多多/令人惊艳\""
+    "等夸张或模板套话，不出现\"首先/其次/总之/希望作者\"等 AI 味衔接。\n"
+    "2. 严格依据论文内容评审，直接指出具体问题（哪一节、哪句、什么不足），可复现、可执行。\n"
+    "3. 评分与推荐用具体数字/档位，理由具体。\n"
+    "4. 禁止输出任何 Markdown 或排版符号：#、*、**、-、>、数字编号、竖线表格等一律不用；"
+    "分段小标题用纯文本（如\"总体评价/主要问题/优点\"），不用 # 前缀；列表改用通顺叙述或分号衔接。\n"
+    "5. 直接输出审稿报告，不要任何前置说明或寒暄。"
+)
+
+
+async def de_ai_review(
+    text: str,
+    venue: str,
+    venue_type: str,
+    model: str = "deepseek",
+    temperature: float = 0.5,
+) -> str:
+    """投稿前审查：以"资深审稿人"语体生成去 AI 痕迹的专业审稿报告。"""
+    prompt = (
+        f"请以 {venue}（{venue_type}）审稿人视角，对下面这篇论文撰写审稿报告。\n\n"
+        "请按以下四部分用普通文字小标题组织（不要使用 #、*、-、数字编号等任何符号）：\n"
+        "总体评价：给出创新性、方法与实验充分度、写作与可读性的 1-5 分，以及推荐意见"
+        "（Accept / Weak Accept / Borderline / Reject，选一）。\n"
+        "主要问题：按严重程度（Critical / Major / Minor）排序，每条指出具体位置、问题、建议。\n"
+        "优点：简要列出值得肯定之处。\n"
+        "对作者的修改建议：具体、可执行。\n\n"
+        f"论文内容：\n{text}"
+    )
+    return await call_llm_with_config(
+        model,
+        [{"role": "system", "content": SYSTEM_PROMPT_REV}, {"role": "user", "content": prompt}],
+        temperature=temperature,
+    )
+
+
 # ─── 批量处理 ────────────────────────────────────────────────────
 
 async def polish_by_segments(

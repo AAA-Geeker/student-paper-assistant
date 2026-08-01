@@ -111,13 +111,13 @@ export default function SkillPanel({ title, content, outline, onResult }: SkillP
   return (
     <div className="bg-white p-4 rounded shadow space-y-3">
       <h3 className="font-bold text-lg flex items-center gap-2">
-        <Wand2 size={18} className="text-indigo-600" />
+        <Wand2 size={18} className="text-primary" />
         AI 写作助手
       </h3>
 
       {/* Skill 选择器 */}
       <div className="space-y-1">
-        <label className="text-xs text-gray-500 font-medium">选择工作流</label>
+        <label className="text-xs text-muted-foreground font-medium">选择工作流</label>
         <div className="grid grid-cols-1 gap-1.5">
           {skills.map(skill => (
             <div key={skill.name}>
@@ -129,8 +129,8 @@ export default function SkillPanel({ title, content, outline, onResult }: SkillP
                 }}
                 className={`w-full text-left p-2 rounded text-sm transition-colors ${
                   selectedSkill === skill.name
-                    ? 'bg-indigo-50 border border-indigo-200 ring-1 ring-indigo-300'
-                    : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
+                    ? 'bg-accent border border-indigo-200 ring-1 ring-indigo-300'
+                    : 'bg-muted/60 hover:bg-muted border border-border'
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -139,14 +139,14 @@ export default function SkillPanel({ title, content, outline, onResult }: SkillP
                 </div>
               </button>
               {expandedSkill === skill.name && (
-                <div className="ml-2 mt-1 p-2 bg-gray-50 rounded text-xs text-gray-600 space-y-1">
-                  <p className="font-medium text-gray-700">{skillDescriptions[skill.name]}</p>
+                <div className="ml-2 mt-1 p-2 bg-muted/60 rounded text-xs text-muted-foreground space-y-1">
+                  <p className="font-medium text-foreground/80">{skillDescriptions[skill.name]}</p>
                   <p>步骤数：{skill.steps.length} 步</p>
                   <div className="space-y-0.5 mt-1">
                     {skill.steps.map((step, i) => (
-                      <div key={i} className="flex items-center gap-1.5 text-gray-500">
-                        <span className="w-4 h-4 rounded-full bg-indigo-100 text-indigo-600 text-center text-[10px] leading-4 font-bold">{i + 1}</span>
-                        {step.name} — <span className="text-gray-400">{step.description}</span>
+                      <div key={i} className="flex items-center gap-1.5 text-muted-foreground">
+                        <span className="w-4 h-4 rounded-full bg-accent text-primary text-center text-[10px] leading-4 font-bold">{i + 1}</span>
+                        {step.name} — <span className="text-muted-foreground/70">{step.description}</span>
                       </div>
                     ))}
                   </div>
@@ -160,7 +160,7 @@ export default function SkillPanel({ title, content, outline, onResult }: SkillP
       {/* 额外输入 */}
       {selectedSkill && (
         <div>
-          <label className="text-xs text-gray-500 font-medium">
+          <label className="text-xs text-muted-foreground font-medium">
             {selectedSkill === 'paper-revise' ? '导师/审稿人反馈' :
              selectedSkill === 'paper-polish' ? '润色风格（默认：学术）' :
              selectedSkill === 'paper-outline' ? '补充要求（可选）' : '额外说明（可选）'}
@@ -180,14 +180,14 @@ export default function SkillPanel({ title, content, outline, onResult }: SkillP
           <button
             onClick={handleFullExecute}
             disabled={loading}
-            className="flex-1 bg-indigo-600 text-white px-3 py-2 rounded text-sm hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-1"
+            className="flex-1 bg-primary text-primary-foreground px-3 py-2 rounded text-sm hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-1"
           >
             {loading ? '执行中...' : <><Play size={14} /> 一键执行</>}
           </button>
           <button
             onClick={handleStepByStep}
             disabled={loading}
-            className="flex-1 bg-gray-100 text-gray-700 px-3 py-2 rounded text-sm hover:bg-gray-200 disabled:opacity-50"
+            className="flex-1 bg-muted text-foreground/80 px-3 py-2 rounded text-sm hover:bg-gray-200 disabled:opacity-50"
           >
             逐步执行
           </button>
@@ -227,14 +227,14 @@ export default function SkillPanel({ title, content, outline, onResult }: SkillP
 
       {/* 快速操作（始终可用） */}
       <div className="border-t pt-2 mt-2">
-        <p className="text-xs text-gray-400 mb-1.5">快速操作（点击直接执行）</p>
+        <p className="text-xs text-muted-foreground/70 mb-1.5">快速操作（点击直接执行）</p>
         <div className="grid grid-cols-2 gap-1">
           <button
             onClick={() => {
               setSelectedSkill('paper-outline');
               handleFullExecute();
             }}
-            className="text-xs bg-gray-50 hover:bg-gray-100 p-1.5 rounded text-left"
+            className="text-xs bg-muted/60 hover:bg-muted p-1.5 rounded text-left"
           >
             📋 生成大纲
           </button>
@@ -243,7 +243,7 @@ export default function SkillPanel({ title, content, outline, onResult }: SkillP
               setSelectedSkill('paper-polish');
               handleFullExecute();
             }}
-            className="text-xs bg-gray-50 hover:bg-gray-100 p-1.5 rounded text-left"
+            className="text-xs bg-muted/60 hover:bg-muted p-1.5 rounded text-left"
           >
             ✨ 润色
           </button>
@@ -252,7 +252,7 @@ export default function SkillPanel({ title, content, outline, onResult }: SkillP
               setSelectedSkill('paper-review');
               handleFullExecute();
             }}
-            className="text-xs bg-gray-50 hover:bg-gray-100 p-1.5 rounded text-left"
+            className="text-xs bg-muted/60 hover:bg-muted p-1.5 rounded text-left"
           >
             🔍 审查
           </button>
@@ -261,7 +261,7 @@ export default function SkillPanel({ title, content, outline, onResult }: SkillP
               setSelectedSkill('paper-draft');
               handleFullExecute();
             }}
-            className="text-xs bg-gray-50 hover:bg-gray-100 p-1.5 rounded text-left"
+            className="text-xs bg-muted/60 hover:bg-muted p-1.5 rounded text-left"
           >
             ✍️ 续写
           </button>

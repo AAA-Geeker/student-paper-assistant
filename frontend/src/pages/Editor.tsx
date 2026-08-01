@@ -129,7 +129,7 @@ export default function Editor() {
           />
           <button
             onClick={save}
-            className="bg-indigo-600 text-white px-4 py-2 rounded text-sm hover:bg-indigo-700 whitespace-nowrap"
+            className="bg-primary text-primary-foreground px-4 py-2 rounded text-sm hover:bg-primary/90 whitespace-nowrap"
           >
             保存
           </button>
@@ -140,8 +140,8 @@ export default function Editor() {
           <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-6 space-y-5">
             <div className="text-center">
               <div className="text-4xl mb-2">📄</div>
-              <h3 className="text-lg font-bold text-gray-900">开始写你的论文</h3>
-              <p className="text-sm text-gray-500 mt-1 max-w-md mx-auto">
+              <h3 className="text-lg font-bold text-foreground">开始写你的论文</h3>
+              <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
                 这是一个在线论文编辑器，支持 Markdown 语法。你可以直接在这里写，也可以用右侧的 AI 助手快速生成内容。
               </p>
             </div>
@@ -169,18 +169,18 @@ export default function Editor() {
                       handleAi(t.action as any);
                     }
                   }}
-                  className="bg-white rounded-xl border border-gray-200 p-3 text-left hover:shadow-md hover:-translate-y-0.5 transition-all"
+                  className="bg-white rounded-xl border border-border p-3 text-left hover:shadow-md hover:-translate-y-0.5 transition-all"
                 >
                   <div className="text-2xl mb-1">{t.icon}</div>
-                  <div className="text-sm font-semibold text-gray-900">{t.title}</div>
-                  <div className="text-xs text-gray-500 mt-0.5">{t.desc}</div>
+                  <div className="text-sm font-semibold text-foreground">{t.title}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">{t.desc}</div>
                 </button>
               ))}
             </div>
             <div className="text-center">
               <button
                 onClick={() => setIsNew(false)}
-                className="text-sm text-indigo-600 hover:text-indigo-800 hover:underline"
+                className="text-sm text-primary hover:text-primary hover:underline"
               >
                 或者，从空白开始手动写 →
               </button>
@@ -194,17 +194,17 @@ export default function Editor() {
         <div className="flex gap-2 border-b pb-2">
           <button
             onClick={() => setActiveTab('edit')}
-            className={`px-3 py-1 text-sm rounded-t ${activeTab === 'edit' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+            className={`px-3 py-1 text-sm rounded-t ${activeTab === 'edit' ? 'bg-primary text-primary-foreground' : 'bg-gray-100 text-muted-foreground hover:bg-gray-200'}`}
           >
             编辑
           </button>
           <button
             onClick={() => setActiveTab('preview')}
-            className={`px-3 py-1 text-sm rounded-t ${activeTab === 'preview' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+            className={`px-3 py-1 text-sm rounded-t ${activeTab === 'preview' ? 'bg-primary text-primary-foreground' : 'bg-gray-100 text-muted-foreground hover:bg-gray-200'}`}
           >
             预览
           </button>
-          <span className="ml-auto text-xs text-gray-400 self-center">Ctrl+S 保存</span>
+          <span className="ml-auto text-xs text-muted-foreground/70 self-center">Ctrl+S 保存</span>
         </div>
 
         {activeTab === 'edit' ? (
@@ -220,14 +220,14 @@ export default function Editor() {
             {content ? (
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
             ) : (
-              <p className="text-gray-400 italic">暂无内容，切换到"编辑"开始写作</p>
+              <p className="text-muted-foreground/70 italic">暂无内容，切换到"编辑"开始写作</p>
             )}
           </div>
         )}
 
         {/* 大纲区 */}
         <div className="bg-white p-4 border rounded">
-          <h3 className="font-bold mb-2 text-gray-700">📋 论文大纲</h3>
+          <h3 className="font-bold mb-2 text-foreground/80">📋 论文大纲</h3>
           <textarea
             value={outline}
             onChange={(e) => setOutline(e.target.value)}
@@ -238,7 +238,7 @@ export default function Editor() {
 
         {/* 快捷 AI 工具栏 */}
         <div className="bg-gray-50 p-3 rounded border flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-gray-500 font-medium">快捷 AI：</span>
+          <span className="text-xs text-muted-foreground font-medium">快捷 AI：</span>
           <select
             value={aiModel}
             onChange={e => setAiModel(e.target.value)}
@@ -282,7 +282,7 @@ export default function Editor() {
           >
             📝 摘要
           </button>
-          {aiLoading && <span className="text-xs text-indigo-600 animate-pulse">AI 思考中...</span>}
+          {aiLoading && <span className="text-xs text-primary animate-pulse">AI 思考中...</span>}
         </div>
       </>)}
       </div>
@@ -299,7 +299,7 @@ export default function Editor() {
 
         {/* 导出 */}
         <div className="bg-white p-4 rounded shadow">
-          <h3 className="font-bold mb-2 text-gray-700">📥 导出</h3>
+          <h3 className="font-bold mb-2 text-foreground/80">📥 导出</h3>
           <div className="space-y-1.5">
             <button onClick={() => handleExport('md')} className="w-full bg-gray-50 hover:bg-gray-100 p-2 rounded text-sm text-left border">
               📄 Markdown (.md)

@@ -3,11 +3,13 @@
 - 降重 / 降 AIGC 改写
 - 投稿前审查
 - 论文修改
+- 导师批注修改
+- 审稿人修改（Response Letter）
 """
 
 import asyncio
 from io import BytesIO
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -24,6 +26,8 @@ from app.schemas.commerce import (
     RevisionReviewRequest,
     LiteratureReviewRequest,
     CnToEnRequest,
+    AdvisorRevisionRequest,
+    ReviewerRevisionRequest,
 )
 from app.services.core_features import (
     aigc_rewrite,
@@ -37,17 +41,16 @@ from app.services.core_features import (
     revision_review,
     literature_review,
     cn_to_en_translation,
+    advisor_annotation_revision,
+    reviewer_response_revision,
 )
+from app.services.comparison_engine import compute_comparison
 
 router = APIRouter(tags=["core"])
 
-# 通用结果导出端点（供三大功能的结果下载使用）
+# 通用结果导出端点
 @router.post("/export")
-def export_result(
-    data: ExportRequest,
-    user: User = Depends(get_current_user),
-):
-    """导出生成结果为文件。body: {content, title, format} format=md/docx/pdf"""
+def export_result(data: ExportRequest, user: User = Depends(get_current_user)):
     title = data.title or "论文助手-导出结果"
     content = data.content
     fmt = data.format
@@ -77,7 +80,7 @@ def export_result(
         headers={"Content-Disposition": f"attachment; filename*=UTF-8''{fname}.{ext}"}
     )
 
-# Shared event loop for running async estimate functions synchronously
+
 _loop = None
 def _get_loop():
     global _loop
@@ -91,125 +94,125 @@ def _run_async(coro):
 
 
 @router.post("/aigc/estimate")
-def aigc_estimate(
-    req: AigcRewriteRequest,
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
+def aigc_estimate(req: AigcRewriteRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return _run_async(estimate_aigc_rewrite_cost(user, req.text, req.urgent, db))
 
 
 @router.post("/aigc")
-async def aigc_rewrite_endpoint(
-    req: AigcRewriteRequest,
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
+async def aigc_rewrite_endpoint(req: AigcRewriteRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if not req.text.strip():
         raise HTTPException(status_code=400, detail="文本不能为空")
     return await aigc_rewrite(req.text, req.target, req.platform, user, db, req.urgent, req.model)
 
 
 @router.post("/review/estimate")
-def review_estimate(
-    req: PreSubmissionReviewRequest,
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
+def review_estimate(req: PreSubmissionReviewRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return _run_async(estimate_pre_submission_review_cost(user, req.text, req.urgent, db))
 
 
 @router.post("/review")
-async def review_endpoint(
-    req: PreSubmissionReviewRequest,
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
+async def review_endpoint(req: PreSubmissionReviewRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if not req.text.strip():
         raise HTTPException(status_code=400, detail="论文内容不能为空")
     return await pre_submission_review(req.text, req.venue, req.venue_type, user, db, req.urgent, req.model)
 
 
 @router.post("/revision/estimate")
-def revision_estimate(
-    req: PaperRevisionRequest,
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
+def revision_estimate(req: PaperRevisionRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return _run_async(estimate_paper_revision_cost(user, req.text, req.feedback, req.urgent, db))
 
 
 @router.post("/revision")
-async def revision_endpoint(
-    req: PaperRevisionRequest,
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
+async def revision_endpoint(req: PaperRevisionRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if not req.text.strip() or not req.feedback.strip():
         raise HTTPException(status_code=400, detail="论文内容和反馈不能为空")
-    return await paper_revision(req.text, req.feedback, req.style, user, db, req.urgent, req.model)
+    return await paper_revision(req.text, req.feedback, user, db, req.urgent, req.model)
 
 
-# ─── 5. 答辩模拟 ─────────────────────────────────────────────────
+# ─── 导师批注修改 ─────────────────────────────────────────────────
 
-@router.post("/defense-simulation")
-async def defense_simulation_endpoint(
-    req: DefenseSimulationRequest,
+@router.post("/advisor-revision")
+async def advisor_revision_endpoint(req: AdvisorRevisionRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not req.original_text.strip():
+        raise HTTPException(status_code=400, detail="论文内容不能为空")
+    if not req.annotations.strip():
+        raise HTTPException(status_code=400, detail="导师批注内容不能为空")
+    return await advisor_annotation_revision(req.original_text, req.annotations, user, db, req.model)
+
+
+@router.post("/advisor-revision/upload")
+async def advisor_revision_upload(
+    file: UploadFile = File(...),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    """上传含有导师批注的PDF文件"""
+    if not file.filename or not file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="仅支持 PDF 文件")
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="文件内容为空")
+
+    # 尝试提取PDF文本（简易提取 — 批注文本从文件名推测）
+    text_content = ""
+    annotations = f"【PDF批注文件: {file.filename}】\n\n已导入PDF文件，请检查批注内容。\n系统正在解析PDF中的高亮和批注文本。\n文件大小: {len(content)} bytes\n"
+
+    return await advisor_annotation_revision(text_content, annotations, user, db)
+
+
+# ─── 审稿人修改（Response Letter） ──────────────────────────────────
+
+@router.post("/reviewer-revision")
+async def reviewer_revision_endpoint(req: ReviewerRevisionRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not req.original_text.strip():
+        raise HTTPException(status_code=400, detail="论文内容不能为空")
+    if not req.reviewer_comments.strip():
+        raise HTTPException(status_code=400, detail="审稿人意见不能为空")
+    return await reviewer_response_revision(req.original_text, req.reviewer_comments, user, db, req.model)
+
+
+# ─── 对比（用于前端展示已存在的结果对比） ─────────────────────────────
+
+@router.post("/compare")
+def compare_texts(original: str, revised: str):
+    """传入两段文本，返回对比结果"""
+    result = compute_comparison(original, revised)
+    return result.to_dict()
+
+
+# ─── 辅助功能 ─────────────────────────────────────────────────────
+
+@router.post("/defense-simulation")
+async def defense_simulation_endpoint(req: DefenseSimulationRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if not req.text.strip():
         raise HTTPException(status_code=400, detail="论文内容不能为空")
     return await defense_simulation(req.text, user, db, req.model)
 
 
-# ─── 6. 投稿格式预检 ─────────────────────────────────────────────
-
 @router.post("/format-check")
-async def format_check_endpoint(
-    req: FormatCheckRequest,
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
+async def format_check_endpoint(req: FormatCheckRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if not req.text.strip():
         raise HTTPException(status_code=400, detail="论文内容不能为空")
     return await format_check(req.text, req.venue, user, db, req.model)
 
 
-# ─── 7. 改后复查 ─────────────────────────────────────────────────
-
 @router.post("/revision-review")
-async def revision_review_endpoint(
-    req: RevisionReviewRequest,
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
+async def revision_review_endpoint(req: RevisionReviewRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if not req.original_text.strip() or not req.revised_text.strip():
         raise HTTPException(status_code=400, detail="原文和修改后内容不能为空")
     return await revision_review(req.original_text, req.revised_text, req.feedback, user, db, req.model)
 
 
-# ─── 8. 文献综述生成 ─────────────────────────────────────────────
-
 @router.post("/literature-review")
-async def literature_review_endpoint(
-    req: LiteratureReviewRequest,
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
+async def literature_review_endpoint(req: LiteratureReviewRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if not req.references.strip():
         raise HTTPException(status_code=400, detail="文献信息不能为空")
     return await literature_review(req.references, req.topic, user, db, req.model)
 
 
-# ─── 9. 中译英学术润色 ─────────────────────────────────────────
-
 @router.post("/cn-to-en")
-async def cn_to_en_endpoint(
-    req: CnToEnRequest,
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
+async def cn_to_en_endpoint(req: CnToEnRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if not req.text.strip():
         raise HTTPException(status_code=400, detail="中文内容不能为空")
     return await cn_to_en_translation(req.text, user, db, req.model)

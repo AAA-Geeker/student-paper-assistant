@@ -2,7 +2,12 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useEffect, useState } from 'react';
 import { getProfile } from '../api/core';
-import { Menu, X, Sparkles, ShieldCheck, FileEdit, Coins } from 'lucide-react';
+import { Menu, X, Sparkles, ShieldCheck, FileEdit, Coins, LogOut, LayoutDashboard } from 'lucide-react';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Moon, Sun } from 'lucide-react';
+import { useThemeStore } from '../stores/themeStore';
+import { cn } from '../lib/utils';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token);
@@ -12,6 +17,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [credits, setCredits] = useState<number | null>(null);
   const [, setPlan] = useState('free');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const theme = useThemeStore((s) => s.theme);
+  const toggleTheme = useThemeStore((s) => s.toggle);
 
   useEffect(() => {
     if (token) {
@@ -37,128 +44,130 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const isLandingPage = location.pathname === '/';
 
   const coreNavLinks = [
-    { path: '/aigc', label: '降重', icon: Sparkles },
-    { path: '/review', label: '审稿', icon: ShieldCheck },
-    { path: '/revision', label: '修改', icon: FileEdit },
+    { path: '/aigc', label: '降重 / 降AIGC', icon: Sparkles },
+    { path: '/review', label: '投稿审查', icon: ShieldCheck },
+    { path: '/revision', label: '论文修改', icon: FileEdit },
   ];
 
+  const brand = (
+    <Link to={isLoggedIn ? '/dashboard' : '/'} className="flex items-center gap-2 font-bold text-lg tracking-tight text-foreground">
+      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-fuchsia-500 text-white text-base">🎓</span>
+      <span>论文助手</span>
+    </Link>
+  );
+
   return (
-    <div className="min-h-screen bg-gray-50 pb-16 sm:pb-0">
-      {/* ─── Desktop 导航 ─── */}
-      <nav className="bg-white shadow-sm border-b sticky top-0 z-50 hidden sm:block">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
-          <Link to={isLoggedIn ? '/dashboard' : '/'} className="text-xl font-bold text-indigo-600 flex items-center gap-2">
-            <span>🎓</span> 论文助手
-          </Link>
-          <div className="flex items-center gap-3">
-            {isLoggedIn ? (
+    <div className="min-h-screen bg-background pb-16 sm:pb-0">
+      {/* ─── 顶部导航 ─── */}
+      <header className="sticky top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="max-w-6xl mx-auto px-4 h-16 flex justify-between items-center gap-4">
+          {brand}
+
+          {/* 桌面端 */}
+          <nav className="hidden sm:flex items-center gap-1">
+            {isLoggedIn && (
               <>
-                {/* 核心功能快捷入口 */}
                 {coreNavLinks.map((link) => (
                   <Link
                     key={link.path}
                     to={link.path}
-                    className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                    className={cn(
+                      "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors",
                       location.pathname === link.path
-                        ? 'bg-indigo-50 text-indigo-700 font-medium'
-                        : 'text-gray-600 hover:bg-gray-100'
-                    }`}
+                        ? "bg-accent text-accent-foreground font-medium"
+                        : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+                    )}
                   >
                     <link.icon size={15} />
                     {link.label}
                   </Link>
                 ))}
+              </>
+            )}
+          </nav>
 
-                <div className="w-px h-5 bg-gray-200 hidden sm:block" />
-
-                {/* 资产入口 */}
-                <Link
-                  to="/credits"
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                    location.pathname === '/credits'
-                      ? 'bg-indigo-100 text-indigo-700'
-                      : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
-                  }`}
-                >
-                  <span>💎</span>
-                  <span className="hidden sm:inline">{credits !== null ? `${credits.toFixed(0)} 点` : '...'}</span>
+          <div className="flex items-center gap-2">
+            {/* 主题切换 */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              aria-label={theme === 'dark' ? '切换到浅色模式' : '切换到深色模式'}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+            </Button>
+            {isLoggedIn ? (
+              <>
+                <Link to="/credits">
+                  <Badge variant="secondary" className="gap-1.5 rounded-full px-3 py-1 text-sm font-medium text-primary">
+                    <Coins size={13} />
+                    {credits !== null ? `${credits.toFixed(0)} 点` : '...'}
+                  </Badge>
                 </Link>
-
-                <Link
-                  to="/dashboard"
-                  className={`text-sm transition-colors ${
-                    location.pathname === '/dashboard' ? 'text-indigo-600 font-medium' : 'text-gray-700 hover:text-indigo-600'
-                  } hidden sm:inline`}
-                >
-                  工作台
-                </Link>
-
-                {/* 退出 */}
-                <button
+                <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+                  <Link to="/dashboard"><LayoutDashboard size={15} /> 工作台</Link>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="hidden sm:inline-flex text-muted-foreground hover:text-destructive"
                   onClick={handleLogout}
-                  className="text-sm text-gray-500 hover:text-red-600 transition-colors ml-1"
                 >
-                  退出
-                </button>
+                  <LogOut size={15} /> 退出
+                </Button>
               </>
             ) : (
               !isAuthPage && !isLandingPage && (
                 <>
-                  <Link to="/login" className="text-gray-700 hover:text-indigo-600 text-sm">登录</Link>
-                  <Link to="/register" className="bg-indigo-600 text-white px-4 py-1.5 rounded-lg text-sm hover:bg-indigo-700 transition-colors">注册</Link>
+                  <Button asChild variant="ghost" size="sm"><Link to="/login">登录</Link></Button>
+                  <Button asChild size="sm"><Link to="/register">注册</Link></Button>
                 </>
               )
             )}
-          </div>
-        </div>
-      </nav>
-
-      {/* ─── 移动端导航 ─── */}
-      <nav className="sm:hidden bg-white shadow-sm border-b sticky top-0 z-50">
-        <div className="px-4 py-3 flex justify-between items-center">
-          <Link to={isLoggedIn ? '/dashboard' : '/'} className="text-lg font-bold text-indigo-600 flex items-center gap-1.5">
-            <span>🎓</span> 论文助手
-          </Link>
-          <div className="flex items-center gap-2">
-            {isLoggedIn && credits !== null && (
-              <Link to="/credits" className="flex items-center gap-1 text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded-full">
-                <Coins size={12} /> {credits.toFixed(0)}
-              </Link>
+            {/* 移动端菜单按钮 */}
+            {isLoggedIn && (
+              <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="sm:hidden p-1 text-muted-foreground">
+                {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+              </button>
             )}
-            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-1 text-gray-600">
-              {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
-            </button>
           </div>
         </div>
-        {/* 移动端下拉菜单 */}
+
+        {/* 移动端下拉 */}
         {mobileMenuOpen && (
-          <div className="border-t bg-white px-4 py-3 space-y-2 text-sm">
+          <div className="sm:hidden border-t bg-background px-4 py-3 space-y-1 text-sm">
             {isLoggedIn ? (
               <>
-                <Link to="/dashboard" className="block py-1.5 text-gray-700" onClick={() => setMobileMenuOpen(false)}>🏠 工作台</Link>
-                <Link to="/aigc" className="block py-1.5 text-gray-700" onClick={() => setMobileMenuOpen(false)}>✨ 降重 / 降 AIGC</Link>
-                <Link to="/review" className="block py-1.5 text-gray-700" onClick={() => setMobileMenuOpen(false)}>🛡️ 投稿前审查</Link>
-                <Link to="/revision" className="block py-1.5 text-gray-700" onClick={() => setMobileMenuOpen(false)}>📝 论文修改</Link>
-                <Link to="/credits" className="block py-1.5 text-gray-700" onClick={() => setMobileMenuOpen(false)}>💎 我的资产</Link>
-                <hr className="my-1" />
-                <button onClick={() => { setMobileMenuOpen(false); handleLogout(); }} className="block py-1.5 text-red-600 w-full text-left">退出登录</button>
+                <Link to="/dashboard" className="block py-2 text-foreground" onClick={() => setMobileMenuOpen(false)}>工作台</Link>
+                <Link to="/aigc" className="block py-2 text-foreground" onClick={() => setMobileMenuOpen(false)}>降重 / 降 AIGC</Link>
+                <Link to="/review" className="block py-2 text-foreground" onClick={() => setMobileMenuOpen(false)}>投稿前审查</Link>
+                <Link to="/revision" className="block py-2 text-foreground" onClick={() => setMobileMenuOpen(false)}>论文修改</Link>
+                <Link to="/advisor-revision" className="block py-2 text-foreground" onClick={() => setMobileMenuOpen(false)}>导师批注修改</Link>
+                <Link to="/reviewer-revision" className="block py-2 text-foreground" onClick={() => setMobileMenuOpen(false)}>审稿人修改</Link>
+                <Link to="/credits" className="block py-2 text-foreground" onClick={() => setMobileMenuOpen(false)}>我的资产</Link>
+                <div className="pt-1 mt-1 border-t">
+                  <button onClick={() => { setMobileMenuOpen(false); handleLogout(); }} className="block py-2 text-destructive w-full text-left">
+                    退出登录
+                  </button>
+                </div>
               </>
             ) : (
               <>
-                <Link to="/login" className="block py-1.5 text-gray-700" onClick={() => setMobileMenuOpen(false)}>登录</Link>
-                <Link to="/register" className="block py-1.5 font-medium text-indigo-600" onClick={() => setMobileMenuOpen(false)}>注册</Link>
+                <Link to="/login" className="block py-2 text-foreground" onClick={() => setMobileMenuOpen(false)}>登录</Link>
+                <Link to="/register" className="block py-2 font-medium text-primary" onClick={() => setMobileMenuOpen(false)}>注册</Link>
               </>
             )}
           </div>
         )}
-      </nav>
+      </header>
 
       {/* 主体内容 */}
       <main className="max-w-6xl mx-auto px-4 py-6">{children}</main>
 
-      {/* ─── 移动端底部导航栏 ─── */}
+      {/* ─── 移动端底部导航 ─── */}
       {isLoggedIn && (
-        <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t z-50 flex justify-around py-2 px-2">
+        <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-background border-t z-50 flex justify-around py-2 px-2">
           <MobileNavItem icon="🏠" label="工作台" path="/dashboard" current={location.pathname} />
           <MobileNavItem icon="✨" label="降重" path="/aigc" current={location.pathname} />
           <MobileNavItem icon="🛡️" label="审稿" path="/review" current={location.pathname} />
@@ -176,7 +185,7 @@ function MobileNavItem({ icon, label, path, current }: { icon: string; label: st
     <Link
       to={path}
       className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-xs transition-colors ${
-        isActive ? 'text-indigo-600 font-medium' : 'text-gray-500'
+        isActive ? 'text-primary font-medium' : 'text-muted-foreground'
       }`}
     >
       <span className="text-lg">{icon}</span>

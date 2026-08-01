@@ -13,6 +13,8 @@ class CreditTransactionOut(BaseModel):
     description: str
     created_at: datetime
 
+    model_config = ConfigDict(from_attributes=True)
+
 
 class CreditsOut(BaseModel):
     credits: float
@@ -133,3 +135,26 @@ class LiteratureReviewRequest(BaseModel):
 class CnToEnRequest(BaseModel):
     text: str
     model: str = "deepseek"
+
+
+class AdvisorRevisionRequest(BaseModel):
+    """导师批注修改"""
+    original_text: str
+    annotations: str
+    model: str = "deepseek"
+
+
+class ReviewerRevisionRequest(BaseModel):
+    """审稿人修改（Response Letter）"""
+    original_text: str
+    reviewer_comments: str
+    model: str = "deepseek"
+
+
+class WorkflowResponse(BaseModel):
+    """带工作流和对比数据的响应"""
+    workflow: dict
+    original_text: str
+    revised_text: str
+    comparison: dict
+    result: str

@@ -1,3 +1,136 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --primary: 243 75% 59%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 243 75% 96%;
+    --accent-foreground: 243 75% 40%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 243 75% 59%;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 5%;
+    --card-foreground: 0 0% 98%;
+    --primary: 243 75% 59%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 18%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 243 75% 59%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* ─── 暗色模式下，把“浅色卡片表面”类统一映射为深色表面。
+         这里只处理作为【容器/表面】使用的颜色，不动用于着色的白字按钮等。─── */
+  .dark .bg-white {
+    background-color: hsl(var(--card));
+  }
+  .dark .bg-gray-50 {
+    background-color: hsl(var(--muted) / 0.6);
+  }
+  .dark .bg-gray-100 {
+    background-color: hsl(var(--muted));
+  }
+  .dark .bg-gray-200 {
+    background-color: hsl(var(--border));
+  }
+  .dark .hover\:bg-gray-50:hover {
+    background-color: hsl(var(--muted) / 0.4);
+  }
+  .dark .hover\:bg-gray-100:hover {
+    background-color: hsl(var(--muted));
+  }
+  .dark .hover\:bg-white:hover {
+    background-color: hsl(var(--card));
+  }
+  .dark .bg-white\/10,
+  .dark .bg-white\/20,
+  .dark .bg-white\/30,
+  .dark .bg-white\/60,
+  .dark .bg-white\/70,
+  .dark .bg-white\/80 {
+    background-color: hsl(var(--card) / 0.15);
+  }
+  .dark .border,
+  .dark .border-gray-100,
+  .dark .border-gray-200 {
+    border-color: hsl(var(--border));
+  }
+  .dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) {
+    border-color: hsl(var(--border));
+  }
+  .dark .prose {
+    color: hsl(var(--foreground));
+  }
+}
+
+@layer utilities {
+  /* 网格背景（大面积应用/落地页常用） */
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, hsl(var(--border) / 0.55) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--border) / 0.55) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+
+  /* 渐变光晕（hero 背景） */
+  .bg-glow {
+    background: radial-gradient(
+      60% 50% at 50% 0%,
+      hsl(var(--primary) / 0.12) 0%,
+      transparent 70%
+    );
+  }
+
+  /* 文字渐变 */
+  .text-gradient {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, #a855f7 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  /* 卡片呼吸感边界 */
+  .card-hover {
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 30px -8px hsl(var(--primary) / 0.18);
+    border-color: hsl(var(--primary) / 0.4);
+  }
+}

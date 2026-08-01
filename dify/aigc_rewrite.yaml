@@ -1,0 +1,112 @@
+# 论文降重工作流 — Dify DSL（可导入，替换手搭版）
+# 用途：aigc_rewrite 场景。后端 core_features.aigc_rewrite / dify_client.run_workflow_text("aigc_rewrite",...)
+# 输入变量（与后端发送一致）：text(论文原文), target(降重目标: 降重/降AIGC/同时), platform(检测平台)
+# 输出：result = {{#rewrite.text#}}，映射到后端 outputs.result
+app:
+  mode: workflow
+  name: 论文降重工作流
+  description: 依据指定目标改写论文原文以降低重复率/AIGC检测率
+  icon_type: emoji
+  icon: 🤖
+workflow:
+  id: aigc-rewrite
+  title: 论文降重工作流
+  type: workflow
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      enabled: false
+  graph:
+    viewport:
+      x: 0
+      y: 0
+      zoom: 0.8
+    nodes:
+      - id: start
+        type: start
+        title: 开始
+        position: { x: 0, y: 100 }
+        data:
+          type: start
+          title: 开始
+          variables:
+            - variable: text
+              label: 论文原文
+              required: true
+              type: paragraph
+            - variable: target
+              label: 降重目标
+              required: true
+              type: paragraph
+            - variable: platform
+              label: 检测平台
+              required: false
+              type: paragraph
+          advanced_settings:
+            files: []
+      - id: rewrite
+        type: llm
+        title: 智能改写
+        position: { x: 300, y: 100 }
+        data:
+          type: llm
+          title: 智能改写
+          desc: 按目标改写论文原文
+          model:
+            provider: deepseek
+            name: deepseek-chat
+            mode: chat
+            completion_params:
+              temperature: 0.6
+          prompt_template:
+            - role: system
+              text: >-
+                你是一位严格的学术论文改写助手，只能严格依据用户提供的【论文原文】
+                进行改写，绝对禁止编造或替换原文内容、数据、结论。目标：降低重复率
+                和 AIGC 检测率。规则：1) 直接输出改写后的完整论文全文，不要任何
+                前置说明/思考过程/格式指导；2) 通过调整句式、替换同义词、变换表达
+                来改写；3) 保留原意、专业术语、数据与结论不变；4) 不使用列表或
+                编号，仅输出连续的论文正文。
+            - role: user
+              text: >-
+                请根据改写目标改写以下论文原文。
+
+                改写目标：{{#start.target#}}
+                （"降重"=降低重复率，"降AIGC"=降低AIGC检测率，"同时"=两者兼顾）
+
+                论文原文：
+                {{#start.text#}}
+
+                请直接输出改写后的论文正文。
+          memory: null
+          context:
+            enabled: false
+          outputs:
+            - variable: text
+      - id: end
+        type: answer
+        title: 输出
+        position: { x: 700, y: 100 }
+        data:
+          type: answer
+          title: 输出
+          value:
+            - type: variable
+              value: '{{#rewrite.text#}}'
+          outputs:
+            - variable: result
+              value: '{{#rewrite.text#}}'
+    edges:
+      - id: e0
+        source: start
+        target: rewrite
+        type: normal
+        sourceHandle: source
+        targetHandle: target
+      - id: e1
+        source: rewrite
+        target: end
+        type: normal
+        sourceHandle: source
+        targetHandle: target

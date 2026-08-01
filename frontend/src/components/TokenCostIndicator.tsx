@@ -28,33 +28,33 @@ export default function TokenCostIndicator() {
     <div className="bg-white p-3 rounded shadow text-sm">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between text-gray-600 hover:text-gray-800"
+        className="w-full flex items-center justify-between text-muted-foreground hover:text-foreground/90"
       >
         <span className="flex items-center gap-1.5 font-medium">
           <BarChart3 size={14} />
           模型与成本
         </span>
-        <span className="text-xs text-gray-400">{expanded ? '收起' : '展开'}</span>
+        <span className="text-xs text-muted-foreground/70">{expanded ? '收起' : '展开'}</span>
       </button>
 
       {expanded && (
         <div className="mt-2 space-y-1.5">
           {models.map(m => (
-            <div key={m.name} className="flex items-center justify-between text-xs p-1.5 bg-gray-50 rounded">
+            <div key={m.name} className="flex items-center justify-between text-xs p-1.5 bg-muted/60 rounded">
               <div className="flex items-center gap-1.5">
-                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${tierColors[m.tier] || 'bg-gray-100'}`}>
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${tierColors[m.tier] || 'bg-muted'}`}>
                   {tierLabels[m.tier] || m.tier}
                 </span>
                 <span className="font-medium">{m.name}</span>
                 {!m.available && <span className="text-red-400">未配置</span>}
               </div>
-              <div className="text-gray-400 flex items-center gap-0.5">
+              <div className="text-muted-foreground/70 flex items-center gap-0.5">
                 <DollarSign size={10} />
                 <span>${m.cost_per_1k_input.toFixed(4)} / 1k in</span>
               </div>
             </div>
           ))}
-          <p className="text-[10px] text-gray-400 mt-1">
+          <p className="text-[10px] text-muted-foreground/70 mt-1">
             💡 提示：配置多个 API Key 可启用自动省钱路由（见 .env.example）
           </p>
         </div>

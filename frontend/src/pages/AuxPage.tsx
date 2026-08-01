@@ -123,7 +123,7 @@ export default function AuxPage({ configKey }: { configKey: string }) {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-sm text-gray-500 hover:text-indigo-600 mb-4">
+      <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-primary mb-4">
         <ArrowLeft size={16} /> 返回
       </button>
 
@@ -137,28 +137,28 @@ export default function AuxPage({ configKey }: { configKey: string }) {
         </div>
       )}
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded-2xl shadow-sm border border-border p-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-3 bg-gray-50 rounded-xl text-3xl leading-none">{cfg.icon}</div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">{cfg.title}</h1>
-            <p className="text-sm text-gray-500">{cfg.subtitle}</p>
+            <h1 className="text-xl font-bold text-foreground">{cfg.title}</h1>
+            <p className="text-sm text-muted-foreground">{cfg.subtitle}</p>
           </div>
         </div>
 
         {credits !== null && (
-          <div className="flex items-center gap-1.5 mb-4 px-3 py-2 bg-gray-50 rounded-lg text-sm text-gray-600">
+          <div className="flex items-center gap-1.5 mb-4 px-3 py-2 bg-gray-50 rounded-lg text-sm text-muted-foreground">
             <Coins size={14} className="text-amber-500" />
-            当前余额：<span className="font-medium text-gray-800">{credits.toFixed(0)} 点</span>
+            当前余额：<span className="font-medium text-foreground">{credits.toFixed(0)} 点</span>
           </div>
         )}
 
         {step === 1 && (
           <div className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">1. {cfg.placeholder2 ? '粘贴原文' : '粘贴内容'}</label>
+              <label className="block text-sm font-medium text-foreground/80 mb-2">1. {cfg.placeholder2 ? '粘贴原文' : '粘贴内容'}</label>
               <textarea
-                className="w-full h-40 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full h-40 border border-input rounded-lg p-3 text-sm focus:ring-2 focus:ring-ring focus:border-transparent"
                 placeholder={cfg.placeholder}
                 value={inputs.text}
                 onChange={(e) => updateInput('text', e.target.value)}
@@ -167,9 +167,9 @@ export default function AuxPage({ configKey }: { configKey: string }) {
 
             {cfg.placeholder2 && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">2. 粘贴修改后的内容</label>
+                <label className="block text-sm font-medium text-foreground/80 mb-2">2. 粘贴修改后的内容</label>
                 <textarea
-                  className="w-full h-40 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full h-40 border border-input rounded-lg p-3 text-sm focus:ring-2 focus:ring-ring focus:border-transparent"
                   placeholder={cfg.placeholder2}
                   value={inputs.text2}
                   onChange={(e) => updateInput('text2', e.target.value)}
@@ -179,9 +179,9 @@ export default function AuxPage({ configKey }: { configKey: string }) {
 
             {configKey === 'revision-review' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">3. 粘贴反馈意见</label>
+                <label className="block text-sm font-medium text-foreground/80 mb-2">3. 粘贴反馈意见</label>
                 <textarea
-                  className="w-full h-28 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full h-28 border border-input rounded-lg p-3 text-sm focus:ring-2 focus:ring-ring focus:border-transparent"
                   placeholder="导师或审稿人的修改意见..."
                   value={inputs.feedback}
                   onChange={(e) => updateInput('feedback', e.target.value)}
@@ -191,11 +191,11 @@ export default function AuxPage({ configKey }: { configKey: string }) {
 
             {configKey === 'format-check' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">选择目标期刊/会议</label>
+                <label className="block text-sm font-medium text-foreground/80 mb-2">选择目标期刊/会议</label>
                 <select
                   value={inputs.venue}
                   onChange={(e) => updateInput('venue', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg p-2.5 text-sm"
+                  className="w-full border border-input rounded-lg p-2.5 text-sm"
                 >
                   <option value="ACL">ACL / EMNLP / NAACL</option>
                   <option value="IEEE">IEEE 期刊/会议</option>
@@ -208,9 +208,9 @@ export default function AuxPage({ configKey }: { configKey: string }) {
 
             {configKey === 'literature-review' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">综述主题（可选）</label>
+                <label className="block text-sm font-medium text-foreground/80 mb-2">综述主题（可选）</label>
                 <input
-                  className="w-full border border-gray-300 rounded-lg p-2.5 text-sm"
+                  className="w-full border border-input rounded-lg p-2.5 text-sm"
                   placeholder="例如：基于Transformer的文本分类方法"
                   value={inputs.topic}
                   onChange={(e) => updateInput('topic', e.target.value)}
@@ -219,18 +219,18 @@ export default function AuxPage({ configKey }: { configKey: string }) {
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">选择 AI 模型</label>
+              <label className="block text-sm font-medium text-foreground/80 mb-2">选择 AI 模型</label>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {availableModels.map((m) => (
                   <button
                     key={m.id}
                     onClick={() => setModel(m.id)}
                     className={`text-left p-2.5 rounded-lg border text-sm transition-all ${
-                      model === m.id ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-300' : 'border-gray-200 hover:bg-gray-50'
+                      model === m.id ? 'border-primary bg-accent ring-1 ring-ring/30' : 'border-border hover:bg-gray-50'
                     }`}
                   >
-                    <div className="font-medium text-gray-900">{m.label}</div>
-                    <div className="text-xs text-gray-500">{m.desc}</div>
+                    <div className="font-medium text-foreground">{m.label}</div>
+                    <div className="text-xs text-muted-foreground">{m.desc}</div>
                   </button>
                 ))}
               </div>
@@ -240,7 +240,7 @@ export default function AuxPage({ configKey }: { configKey: string }) {
 
             <button
               onClick={handleEstimate}
-              className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700"
+              className="w-full bg-primary text-primary-foreground py-2.5 rounded-lg font-medium hover:bg-primary/90"
             >
               下一步：预估费用
             </button>
@@ -250,8 +250,8 @@ export default function AuxPage({ configKey }: { configKey: string }) {
         {step === 2 && estimate && (
           <div className="space-y-5">
             <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-5">
-              <h3 className="font-bold text-indigo-900 mb-1">费用预估</h3>
-              <p className="text-sm text-indigo-800">
+              <h3 className="font-bold text-foreground mb-1">费用预估</h3>
+              <p className="text-sm text-primary">
                 约消耗 <span className="font-bold">{estimate.points} 点</span>
               </p>
             </div>
@@ -269,13 +269,13 @@ export default function AuxPage({ configKey }: { configKey: string }) {
             )}
 
             <div className="flex gap-3">
-              <button onClick={() => setStep(1)} className="flex-1 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+              <button onClick={() => setStep(1)} className="flex-1 py-2.5 border border-input rounded-lg text-foreground/80 hover:bg-gray-50">
                 返回修改
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={loading || isBalanceLow}
-                className="flex-1 bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-60 flex items-center justify-center gap-2"
+                className="flex-1 bg-primary text-primary-foreground py-2.5 rounded-lg font-medium hover:bg-primary/90 disabled:opacity-60 flex items-center justify-center gap-2"
               >
                 {loading && <Loader2 size={18} className="animate-spin" />}
                 {loading ? '处理中...' : '确认并执行'}
@@ -288,16 +288,16 @@ export default function AuxPage({ configKey }: { configKey: string }) {
         {step === 3 && result && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-gray-900">生成结果</h3>
+              <h3 className="font-bold text-foreground">生成结果</h3>
               <div className="flex items-center gap-2">
                 <ExportButtons content={result} title={cfg.title} />
-                <button onClick={() => { setStep(1); setResult(''); }} className="text-sm text-indigo-600 hover:underline">
+                <button onClick={() => { setStep(1); setResult(''); }} className="text-sm text-primary hover:underline">
                   继续使用
                 </button>
               </div>
             </div>
-            <div className="prose prose-sm max-w-none bg-gray-50 p-4 rounded-lg border border-gray-200">
-              <pre className="whitespace-pre-wrap font-sans text-sm text-gray-800">{result}</pre>
+            <div className="prose prose-sm max-w-none bg-gray-50 p-4 rounded-lg border border-border">
+              <pre className="whitespace-pre-wrap font-sans text-sm text-foreground">{result}</pre>
             </div>
           </div>
         )}

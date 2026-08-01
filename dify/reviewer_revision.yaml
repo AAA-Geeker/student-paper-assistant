@@ -1,0 +1,111 @@
+# 审稿人修改工作流 — Dify DSL (可导入)
+# 用途：reviewer_revision 场景。后端 core_features.reviewer_response_revision 在
+#       DIFY_ENABLED=true 且 DIFY_WORKFLOW_IDS["reviewer_revision"] 配了 id 时调用。
+# 输入变量（与后端发送一致）：text(段落, 论文原文), reviewer_comments(段落, 审稿意见)
+# 输出：result = {{#revision.text#}}
+# ⚠️ 导入前把 model.provider 从 -provider-id- 改成你 Dify 里实际的 provider id。
+app:
+  mode: workflow
+  name: 审稿人修改工作流
+  description: 逐条回复审稿意见 → 修改论文 → 生成 Response Letter + 对照表
+  icon_type: emoji
+  icon: ✉️
+workflow:
+  id: reviewer-revision
+  title: 审稿人修改工作流
+  type: workflow
+  environment_variables: []
+  conversation_variables: []
+  features:
+    file_upload:
+      enabled: false
+  graph:
+    viewport:
+      x: 0
+      y: 0
+      zoom: 0.8
+    nodes:
+      - id: start
+        type: start
+        title: 开始
+        position: { x: 0, y: 100 }
+        data:
+          type: start
+          title: 开始
+          variables:
+            - variable: text
+              label: 论文原文
+              required: true
+              type: paragraph
+            - variable: reviewer_comments
+              label: 审稿人意见
+              required: true
+              type: paragraph
+          advanced_settings:
+            files: []
+      - id: revision
+        type: llm
+        title: 审稿修改
+        position: { x: 280, y: 100 }
+        data:
+          type: llm
+          title: 审稿修改
+          desc: 生成逐条审稿回复 + 修改后的论文全文
+          model:
+            provider: -provider-id-
+            name: deepseek-r1:8b
+            mode: chat
+            completion_params:
+              temperature: 0.4
+          prompt_template:
+            - role: system
+              text: 你是一位专业的学术作者，负责在论文修改稿中逐条回应审稿人意见并修改论文。
+            - role: user
+              text: >-
+                你正在准备论文修改的审稿回复，需要针对每条审稿意见生成回复和修改。
+
+                审稿人意见：
+                {{#start.reviewer_comments#}}
+
+                论文原文：
+                {{#start.text#}}
+
+                请输出以下三部分：
+                ## 逐条回复（Response Letter）
+                针对每条审稿意见：审稿意见原文引用 / 您的回复（感谢+说明修改方式+具体位置）/ 修改后内容（如适用）
+                ## 修改后的论文全文
+                ## 修改对照表
+                | 修改位置 | 原文 | 修改后 | 对应审稿意见 |
+
+                请直接输出结果，不要任何前置说明。
+          outputs:
+            - variable: text
+          memory: null
+          context:
+            enabled: false
+      - id: end
+        type: answer
+        title: 输出
+        position: { x: 560, y: 100 }
+        data:
+          type: answer
+          title: 输出
+          value:
+            - type: variable
+              value: '{{#revision.text#}}'
+          outputs:
+            - variable: result
+              value: '{{#revision.text#}}'
+    edges:
+      - id: e0
+        source: start
+        target: revision
+        type: normal
+        sourceHandle: source
+        targetHandle: target
+      - id: e1
+        source: revision
+        target: end
+        type: normal
+        sourceHandle: source
+        targetHandle: target

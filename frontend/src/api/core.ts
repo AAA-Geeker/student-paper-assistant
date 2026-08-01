@@ -39,26 +39,115 @@ export interface CoreEstimateResult {
   urgent: boolean;
 }
 
+// 工作流响应类型
+export interface WorkflowNode {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  status: 'pending' | 'running' | 'completed' | 'error';
+}
+
+export interface Workflow {
+  type: string;
+  title: string;
+  description: string;
+  nodes: WorkflowNode[];
+}
+
+export interface ComparisonSegment {
+  original: string;
+  revised: string;
+  status: 'unchanged' | 'modified' | 'added' | 'deleted';
+  similarity: number;
+}
+
+export interface ComparisonStats {
+  original_chars: number;
+  revised_chars: number;
+  char_change: number;
+  char_change_percent: number;
+  total_segments: number;
+  unchanged_segments: number;
+  modified_segments: number;
+  added_segments: number;
+  deleted_segments: number;
+  modification_rate: number;
+}
+
+export interface ComparisonResult {
+  original_length: number;
+  revised_length: number;
+  segments: ComparisonSegment[];
+  stats: ComparisonStats;
+}
+
+export interface WorkflowResponse {
+  workflow: Workflow;
+  original_text: string;
+  revised_text: string;
+  comparison: ComparisonResult;
+  result: string;
+  // 向下兼容字段
+  type?: string;
+  target?: string;
+  platform?: string;
+  venue?: string;
+  style?: string;
+  original_length?: number;
+}
+
 export const estimateAigcRewrite = (data: Omit<AigcRewriteRequest, 'urgent'>) =>
   client.post<CoreEstimateResult>('/core/aigc/estimate', data);
 
 export const aigcRewrite = (data: AigcRewriteRequest) =>
-  client.post<{ type: string; target: string; platform: string; original_length: number; result: string }>('/core/aigc', data);
+  client.post<WorkflowResponse>('/core/aigc', data);
 
 export const estimatePreSubmissionReview = (data: Omit<PreSubmissionReviewRequest, 'urgent'>) =>
   client.post<CoreEstimateResult>('/core/review/estimate', data);
 
 export const preSubmissionReview = (data: PreSubmissionReviewRequest) =>
-  client.post<{ type: string; venue: string; venue_type: string; original_length: number; result: string }>('/core/review', data);
+  client.post<WorkflowResponse>('/core/review', data);
 
 export const estimatePaperRevision = (data: Omit<PaperRevisionRequest, 'urgent'>) =>
   client.post<CoreEstimateResult>('/core/revision/estimate', data);
 
 export const paperRevision = (data: PaperRevisionRequest) =>
-  client.post<{ type: string; style: string; original_length: number; feedback_length: number; result: string }>('/core/revision', data);
+  client.post<WorkflowResponse>('/core/revision', data);
 
 export const estimateCoreCost = (data: CoreEstimateRequest) =>
   client.post<CoreEstimateResult>('/me/estimate', data);
+
+// 导师批注修改
+export interface AdvisorRevisionRequest {
+  original_text: string;
+  annotations: string;
+  model?: string;
+}
+
+export const advisorRevision = (data: AdvisorRevisionRequest) =>
+  client.post<WorkflowResponse>('/core/advisor-revision', data);
+
+export const uploadAdvisorPDF = (file: File) => {
+  const form = new FormData();
+  form.append('file', file);
+  return client.post<WorkflowResponse>('/core/advisor-revision/upload', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+
+// 审稿人修改
+export interface ReviewerRevisionRequest {
+  original_text: string;
+  reviewer_comments: string;
+  model?: string;
+}
+
+export const reviewerRevision = (data: ReviewerRevisionRequest) =>
+  client.post<WorkflowResponse>('/core/reviewer-revision', data);
+
+export const compareTexts = (original: string, revised: string) =>
+  client.post<ComparisonResult>('/core/compare', { original, revised });
 
 // 用户资产
 export interface UserProfile {
@@ -115,8 +204,7 @@ export const topUp = (package_id: string) => client.post('/me/top-up', { package
 export const getSubscriptionPlans = () => client.get<{ plans: SubscriptionPlan[] }>('/me/subscription-plans');
 export const subscribe = (plan: string) => client.post('/me/subscribe', { plan });
 
-// ─── 辅助功能 API ──────────────────────────────────────────────
-
+// 辅助功能
 export const defenseSimulation = (data: { text: string; model?: string }) =>
   client.post<{ type: string; original_length: number; result: string }>('/core/defense-simulation', data);
 

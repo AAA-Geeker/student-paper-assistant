@@ -47,13 +47,13 @@ export default function ExportButtons({ content, title = '论文助手-导出结
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs text-gray-400 mr-1">下载：</span>
+      <span className="text-xs text-muted-foreground/70 mr-1">下载：</span>
       {(['md', 'docx', 'pdf'] as const).map((fmt) => (
         <button
           key={fmt}
           onClick={() => handleExport(fmt)}
           disabled={exporting !== null}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all disabled:opacity-50"
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border text-xs text-muted-foreground hover:bg-muted/60 hover:border-input transition-all disabled:opacity-50"
         >
           {exporting === fmt ? (
             <Loader2 size={12} className="animate-spin" />
