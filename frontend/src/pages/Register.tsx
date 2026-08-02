@@ -60,7 +60,7 @@ export default function Register() {
       setToken(res.data.access_token);
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err?.response?.data?.detail ?? '注册失败，该邮箱可能已被使用');
+      setError(err?.response?.data?.detail ?? (err?.message ?? '注册失败，请稍后重试'));
     } finally {
       setLoading(false);
     }

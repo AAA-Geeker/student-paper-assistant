@@ -7,7 +7,7 @@
 """
 import random
 import smtplib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from email.mime.text import MIMEText
 from email.header import Header
 
@@ -19,10 +19,22 @@ from app.models.user import User
 
 
 def _utcnow():
-    # 统一使用 naive UTC：SQLite 存 DateTime(timezone=True) 时读出的是 naive，
-    # 与 aware（含 tzinfo）比较会抛 "can't compare offset-naive/aware"。用 naive UTC 保证跨
-    # SQLite(测试)/Postgres(生产) 一致。
-    return datetime.utcnow()
+    """当前时间（aware UTC）。
+
+    SQLite 存 DateTime(timezone=True) 读出的是 naive（值实为 UTC），Postgres 读出的是 aware。
+    统一用 aware UTC，并在比较前把可能 naive 的 DB 字段补上 UTC tzinfo（见 _as_utc），
+    避免 naive/aware 混比崩溃。
+    """
+    return datetime.now(timezone.utc)
+
+
+def _as_utc(dt):
+    """把 DB 读出的 datetime 归一化为 aware UTC（naive 视为 UTC 补 tzinfo）。"""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 
 def generate_code() -> str:
@@ -119,7 +131,7 @@ def verify_code(db: Session, email: str, code: str) -> tuple:
     if not record:
         return False, "未找到该邮箱的验证码，请先获取验证码"
 
-    if record.expires_at < _utcnow():
+    if _as_utc(record.expires_at) < _utcnow():
         record.used = True
         db.commit()
         return False, "验证码已过期，请重新获取"
