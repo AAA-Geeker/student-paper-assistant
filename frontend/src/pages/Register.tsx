@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { register, login } from '../api/auth';
+import { register, login, sendCode } from '../api/auth';
 import { useAuthStore } from '../stores/authStore';
-import { Loader2, AlertCircle, Mail, Lock, CheckCircle2, Sparkles } from 'lucide-react';
+import { Loader2, AlertCircle, Mail, Lock, CheckCircle2, Sparkles, Send, ShieldCheck } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
@@ -11,25 +11,56 @@ export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [code, setCode] = useState('');
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
   const setToken = useAuthStore((s) => s.setToken);
   const navigate = useNavigate();
 
+  const validEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+
+  const handleSendCode = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!validEmail(email)) { setError('请输入正确的邮箱地址'); return; }
+    setError('');
+    setInfo('');
+    setSending(true);
+    try {
+      const res = await sendCode({ email });
+      setInfo(res.data.message || '验证码已发送，请查收邮箱');
+      setCooldown(60);
+      const timer = setInterval(() => {
+        setCooldown((c) => {
+          if (c <= 1) { clearInterval(timer); return 0; }
+          return c - 1;
+        });
+      }, 1000);
+    } catch (err: any) {
+      setError(err?.response?.data?.detail ?? '验证码发送失败，请稍后再试');
+    } finally {
+      setSending(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) { setError('请填写邮箱和密码'); return; }
+    if (!validEmail(email)) { setError('请输入正确的邮箱地址'); return; }
     if (password.length < 6) { setError('密码至少 6 位'); return; }
     if (password !== confirmPassword) { setError('两次密码输入不一致'); return; }
+    if (!code.trim()) { setError('请输入邮箱收到的验证码'); return; }
     setLoading(true);
     setError('');
+    setInfo('');
     try {
-      await register({ email, password });
+      await register({ email, password, code });
       const res = await login({ email, password });
       setToken(res.data.access_token);
       navigate('/dashboard');
-    } catch {
-      setError('注册失败，该邮箱可能已被使用');
+    } catch (err: any) {
+      setError(err?.response?.data?.detail ?? '注册失败，该邮箱可能已被使用');
     } finally {
       setLoading(false);
     }
@@ -53,9 +84,15 @@ export default function Register() {
           </CardHeader>
           <CardContent>
             {error && (
-              <div className="mb-5 p-3 bg-destructive/10 border border-destructive/30 rounded-lg flex items-center gap-2 text-sm text-destructive">
+              <div className="mb-4 p-3 bg-destructive/10 border border-destructive/30 rounded-lg flex items-center gap-2 text-sm text-destructive">
                 <AlertCircle size={16} className="shrink-0" />
                 {error}
+              </div>
+            )}
+            {info && (
+              <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg flex items-center gap-2 text-sm text-emerald-600">
+                <ShieldCheck size={16} className="shrink-0" />
+                {info}
               </div>
             )}
 
@@ -82,6 +119,27 @@ export default function Register() {
                   <CheckCircle2 size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <Input type="password" required minLength={6} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="再次输入密码" className="pl-9" />
                 </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-foreground">邮箱验证码</label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <ShieldCheck size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Input type="text" required value={code} onChange={(e) => setCode(e.target.value.trim())} placeholder="输入 6 位验证码" className="pl-9" />
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={handleSendCode}
+                    disabled={sending || cooldown > 0}
+                    variant="outline"
+                    className="shrink-0 gap-1.5"
+                  >
+                    {sending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
+                    {cooldown > 0 ? `${cooldown}s 后重发` : '发送验证码'}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">验证码将发送到你填写的邮箱，用于确认邮箱真实有效</p>
               </div>
 
               <Button type="submit" disabled={loading} className="w-full">

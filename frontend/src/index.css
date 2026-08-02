@@ -97,6 +97,18 @@
   }
 }
 
+/* ─── 暗色下灰阶文本提亮 ───────────────────────────────
+   页面大量使用硬编码 text-gray-* 。浅色模式下它们本就是“深灰字”，
+   .dark 把 bg-white/gray-* 底反转为深色后，这些深灰字在近黑底上对比度崩溃、
+   看不清。此处把暗色下的 text-gray-* 统一映射为亮灰阶，保证内容可读。 */
+.dark .text-gray-900 { color: hsl(0 0% 98%); }
+.dark .text-gray-800 { color: hsl(0 0% 95%); }
+.dark .text-gray-700 { color: hsl(0 0% 90%); }
+.dark .text-gray-600 { color: hsl(0 0% 80%); }
+.dark .text-gray-500 { color: hsl(0 0% 73%); }
+.dark .text-gray-400 { color: hsl(0 0% 66%); }
+.dark .text-gray-300 { color: hsl(0 0% 60%); }
+
 @layer utilities {
   /* 网格背景（大面积应用/落地页常用） */
   .bg-grid {

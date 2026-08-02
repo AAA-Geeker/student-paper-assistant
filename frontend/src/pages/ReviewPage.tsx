@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, ArrowLeft, Loader2, AlertCircle, CheckCircle, Info, Coins, FileEdit, ChevronRight, ScrollText } from 'lucide-react';
 import ExportButtons from '../components/ExportButtons';
-import ComparisonView from '../components/ComparisonView';
 import WorkflowSteps from '../components/WorkflowSteps';
 import { Button } from '../components/ui/button';
 import { preSubmissionReview, estimatePreSubmissionReview, getProfile } from '../api/core';
@@ -362,17 +361,6 @@ export default function ReviewPage() {
                 </button>
               </div>
             </div>
-
-            {/* ComparisonView 对比展示 */}
-            {result.comparison && (
-              <div className="bg-gray-50/80 rounded-xl border border-gray-200 p-4">
-                <ComparisonView
-                  comparison={result.comparison}
-                  originalText={text}
-                  revisedText={result.result}
-                />
-              </div>
-            )}
 
             {/* 完整报告 */}
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">

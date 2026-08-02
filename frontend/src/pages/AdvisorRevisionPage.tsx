@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2, AlertCircle, Coins, Upload, FileText, MessageSquareText } from 'lucide-react';
 import WorkflowSteps from '../components/WorkflowSteps';
-import ComparisonView from '../components/ComparisonView';
 import ExportButtons from '../components/ExportButtons';
 import { getProfile, advisorRevision, uploadAdvisorPDF } from '../api/core';
 import type { Workflow, ComparisonResult } from '../api/core';
@@ -215,21 +214,10 @@ export default function AdvisorRevisionPage() {
               </div>
             </div>
 
-            {/* 对比展示 */}
-            {result.comparison && (
-              <ComparisonView
-                comparison={result.comparison}
-                originalText={result.original_text}
-                revisedText={result.revised_text}
-              />
-            )}
-
-            {/* 原始结果（向下兼容） */}
-            {!result.comparison && (
-              <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
-                <pre className="whitespace-pre-wrap font-sans text-sm text-gray-800">{result.result || result.revised_text}</pre>
-              </div>
-            )}
+            {/* 修改结果 */}
+            <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
+              <pre className="whitespace-pre-wrap font-sans text-sm text-gray-800">{result.result || result.revised_text}</pre>
+            </div>
           </div>
         )}
       </div>

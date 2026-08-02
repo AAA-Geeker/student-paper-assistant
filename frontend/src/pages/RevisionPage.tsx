@@ -2,11 +2,10 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   FileEdit, ArrowLeft, Loader2, AlertCircle, CheckCircle, Info, Coins,
-  User, BookOpen, Pencil, MessageSquare, ListChecks, RefreshCw, FileCheck,
+  User, BookOpen, Pencil, MessageSquare, RefreshCw,
   ChevronRight, Copy
 } from 'lucide-react';
 import ExportButtons from '../components/ExportButtons';
-import ComparisonView from '../components/ComparisonView';
 import WorkflowSteps from '../components/WorkflowSteps';
 import { Button } from '../components/ui/button';
 import { paperRevision, estimatePaperRevision, getProfile } from '../api/core';
@@ -58,7 +57,6 @@ const availableModels = [
 ];
 
 type Step = 'input' | 'confirm' | 'result';
-type ViewTab = 'revised' | 'comparison';
 
 const workflowNodes = {
   input: [
@@ -93,7 +91,6 @@ export default function RevisionPage() {
   const locationState = location.state as Record<string, any> | null;
 
   const [step, setStep] = useState<Step>('input');
-  const [viewTab, setViewTab] = useState<ViewTab>('revised');
 
   const [text, setText] = useState(locationState?.originalText || '');
   const [feedback, setFeedback] = useState(locationState?.feedback || '');
@@ -524,69 +521,34 @@ export default function RevisionPage() {
             </div>
           </div>
 
-          {/* 视图切换标签页 */}
+          {/* 修改结果 */}
           <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
-            <div className="flex border-b border-gray-100">
-              <button
-                onClick={() => setViewTab('revised')}
-                className={`flex items-center gap-2 px-5 py-3 text-sm font-medium transition-colors ${
-                  viewTab === 'revised'
-                    ? 'text-indigo-700 border-b-2 border-indigo-600 bg-indigo-50/50'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                <FileCheck size={16} />
-                修改结果
-              </button>
-              <button
-                onClick={() => setViewTab('comparison')}
-                className={`flex items-center gap-2 px-5 py-3 text-sm font-medium transition-colors ${
-                  viewTab === 'comparison'
-                    ? 'text-indigo-700 border-b-2 border-indigo-600 bg-indigo-50/50'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                <ListChecks size={16} />
-                逐段对照
-              </button>
-            </div>
-
             <div className="p-5">
-              {viewTab === 'revised' && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-semibold text-gray-800">修改后文本</h4>
-                    <button
-                      onClick={() => handleCopy(result.result || result.revised_text)}
-                      className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-all ${
-                        copied
-                          ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                          : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
-                      }`}
-                    >
-                      {copied ? <CheckCircle size={13} /> : <Copy size={13} />}
-                      {copied ? '已复制' : '复制'}
-                    </button>
-                  </div>
-                  <div
-                    className="prose prose-sm max-w-none bg-gradient-to-br from-gray-50 to-white p-5 rounded-xl border border-gray-200 whitespace-pre-wrap text-sm text-gray-800 leading-relaxed"
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-gray-800">修改后文本</h4>
+                  <button
+                    onClick={() => handleCopy(result.result || result.revised_text)}
+                    className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-all ${
+                      copied
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                        : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                    }`}
                   >
-                    {(result.result || result.revised_text).split('\n').map((line, i) => (
-                      <p key={i} className={line.trim() === '' ? 'h-3' : 'mb-2'}>
-                        {line || '\u00A0'}
-                      </p>
-                    ))}
-                  </div>
+                    {copied ? <CheckCircle size={13} /> : <Copy size={13} />}
+                    {copied ? '已复制' : '复制'}
+                  </button>
                 </div>
-              )}
-
-              {viewTab === 'comparison' && (
-                <ComparisonView
-                  comparison={result.comparison || null}
-                  originalText={result.original_text || text}
-                  revisedText={result.revised_text || result.result || ''}
-                />
-              )}
+                <div
+                  className="prose prose-sm max-w-none bg-gradient-to-br from-gray-50 to-white p-5 rounded-xl border border-gray-200 whitespace-pre-wrap text-sm text-gray-800 leading-relaxed"
+                >
+                  {(result.result || result.revised_text).split('\n').map((line, i) => (
+                    <p key={i} className={line.trim() === '' ? 'h-3' : 'mb-2'}>
+                      {line || '\u00A0'}
+                    </p>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 

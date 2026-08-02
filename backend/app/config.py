@@ -43,6 +43,21 @@ class Settings(BaseSettings):
         "reviewer_revision": "332f3f95-2d49-497a-a4ea-9bd906d39431",    # 审稿人修改
     }
 
+    # ─── 邮箱验证（注册）────────────────────────────────────────────
+    # 注册需先发送验证码到邮箱并校验，防止用虚假邮箱注册。163 邮箱示例：
+    #   EMAIL_SMTP_HOST=smtp.163.com  EMAIL_SMTP_PORT=465
+    #   EMAIL_SMTP_USER=你的邮箱  EMAIL_SMTP_PASSWORD=授权码（非登录密码）
+    #   EMAIL_FROM=你的邮箱（与 SMTP_USER 通常一致）
+    # 未配置时 send-code 接口返回提示不发送（前端可感知），配置后即真正发信。
+    EMAIL_SMTP_ENABLED: bool = False
+    EMAIL_SMTP_HOST: str = "smtp.163.com"
+    EMAIL_SMTP_PORT: int = 465
+    EMAIL_SMTP_USER: str = ""
+    EMAIL_SMTP_PASSWORD: str = ""
+    EMAIL_FROM: str = ""
+    EMAIL_CODE_TTL_MINUTES: int = 10         # 验证码有效期（分钟）
+    EMAIL_CODE_MAX_ATTEMPTS: int = 5         # 单邮箱每小时最多发送次数（防滥用）
+
     class Config:
         env_file = ".env"
         extra = "ignore"

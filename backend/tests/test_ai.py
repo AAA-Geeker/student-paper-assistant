@@ -1,12 +1,13 @@
 from unittest.mock import patch, AsyncMock
+from tests.conftest import register_user
 
-def get_token(client):
-    client.post("/api/auth/register", json={"email": "u@example.com", "password": "123456"})
+def get_token(client, db):
+    register_user(client, db, email="u@example.com")
     r = client.post("/api/auth/login", json={"email": "u@example.com", "password": "123456"})
     return r.json()["access_token"]
 
-def test_generate_outline(client):
-    token = get_token(client)
+def test_generate_outline(client, db):
+    token = get_token(client, db)
     headers = {"Authorization": f"Bearer {token}"}
     with patch("app.routers.ai.generate_outline", new_callable=AsyncMock) as mock:
         mock.return_value = "1. 引言\n2. 相关工作"

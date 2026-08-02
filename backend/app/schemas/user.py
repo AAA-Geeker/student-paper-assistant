@@ -8,6 +8,16 @@ class UserCreate(BaseModel):
     password: str
 
 
+class SendCodeRequest(BaseModel):
+    email: EmailStr
+
+
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    password: str
+    code: str
+
+
 class UserOut(BaseModel):
     id: int
     email: str
