@@ -50,12 +50,6 @@ const scenarioTags = [
   },
 ];
 
-const availableModels = [
-  { id: 'deepseek', label: 'DeepSeek (省钱)', desc: '性价比最高，适合日常使用' },
-  { id: 'gpt-4o-mini', label: 'GPT-4o-mini (标准)', desc: '质量稳定，中等消耗' },
-  { id: 'gpt-4o', label: 'GPT-4o (高级)', desc: '质量最佳，消耗较高' },
-];
-
 type Step = 'input' | 'confirm' | 'result';
 
 const workflowNodes = {
@@ -97,7 +91,6 @@ export default function RevisionPage() {
   const [scenario, setScenario] = useState('advisor');
   const [style, setStyle] = useState<'minimal' | 'standard' | 'deep'>('standard');
   const [urgent, setUrgent] = useState(false);
-  const [model, setModel] = useState('deepseek');
 
   const [estimate, setEstimate] = useState<{ points: number; is_free: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -137,7 +130,7 @@ export default function RevisionPage() {
     setLoading(true);
     setError('');
     try {
-      const res = await paperRevision({ text, feedback, style, urgent, model });
+      const res = await paperRevision({ text, feedback, style, urgent });
       setResult(res.data);
       setStep('result');
       getProfile().then(r => setCredits(r.data.credits));
@@ -344,34 +337,20 @@ export default function RevisionPage() {
               </div>
             </div>
 
-            {/* 模型选择 + 加急 */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-800 mb-2">AI 模型</label>
-                <select
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
-                >
-                  {availableModels.map((m) => (
-                    <option key={m.id} value={m.id}>{m.label} — {m.desc}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-end pb-1">
-                <label className="flex items-center gap-2.5 px-4 py-2.5 bg-white border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors w-full">
-                  <input
-                    type="checkbox"
-                    checked={urgent}
-                    onChange={(e) => setUrgent(e.target.checked)}
-                    className="rounded text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <div>
-                    <div className="text-sm font-medium text-gray-700">加急处理</div>
-                    <div className="text-xs text-gray-400">2 倍点数，优先返回</div>
-                  </div>
-                </label>
-              </div>
+            {/* 加急处理 */}
+            <div>
+              <label className="flex items-center gap-2.5 px-4 py-2.5 bg-white border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={urgent}
+                  onChange={(e) => setUrgent(e.target.checked)}
+                  className="rounded text-indigo-600 focus:ring-indigo-500"
+                />
+                <div>
+                  <div className="text-sm font-medium text-gray-700">加急处理</div>
+                  <div className="text-xs text-gray-400">2 倍点数，优先返回</div>
+                </div>
+              </label>
             </div>
 
             {/* 提示横幅 */}
