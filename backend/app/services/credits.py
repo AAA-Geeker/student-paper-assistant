@@ -11,13 +11,28 @@
 """
 
 from decimal import Decimal, ROUND_HALF_UP
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
 from sqlalchemy.orm import Session
 
 from app.models.user import User
 from app.models.credit_transaction import CreditTransaction
 from app.services.model_router import estimate_cost
+
+
+def now_utc():
+    """当前时间（aware UTC）。SQLite 的 DateTime(timezone=True) 读出 naive、Postgres 读出 aware，
+    统一用 aware UTC 并在比较前把 DB 字段经 as_utc 归一化，避免 naive/aware 混比崩溃。"""
+    return datetime.now(timezone.utc)
+
+
+def as_utc(dt):
+    """把 DB 读出的 datetime 归一化为 aware UTC（naive 视为 UTC 补 tzinfo）。"""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 
 CREDITS_PER_USD = Decimal("700.00")  # 1 USD = 700 点
@@ -200,7 +215,7 @@ def get_subscription_info(user: User) -> dict:
     plan = SUBSCRIPTION_PLANS.get(user.subscription_plan, SUBSCRIPTION_PLANS["free"])
     expired = True
     if user.subscription_expires_at:
-        expired = datetime.utcnow() > user.subscription_expires_at
+        expired = now_utc() > as_utc(user.subscription_expires_at)
     return {
         "plan": user.subscription_plan,
         "plan_label": {"free": "免费版", "pro": "Pro 版", "premium": "Premium 版"}.get(user.subscription_plan, "免费版"),
@@ -218,7 +233,7 @@ def auto_downgrade_expired_subscriptions(db: Session) -> int:
     检查所有已过期的付费订阅，将其降级为 free。
     返回被降级的用户数。建议在应用启动时 + 定时任务调用。
     """
-    now = datetime.utcnow()
+    now = now_utc()
     expired_users = db.query(User).filter(
         User.subscription_plan.in_(["pro", "premium"]),
         User.subscription_expires_at.isnot(None),

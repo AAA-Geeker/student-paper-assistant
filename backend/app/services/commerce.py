@@ -5,7 +5,7 @@
 """
 
 from decimal import Decimal
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Optional, List
 from sqlalchemy.orm import Session
 
@@ -15,6 +15,8 @@ from app.services.credits import (
     SUBSCRIPTION_PLANS,
     add_credits,
     to_decimal,
+    now_utc,
+    as_utc,
 )
 
 
@@ -84,7 +86,7 @@ def apply_subscription(db: Session, user: User, plan: str) -> bool:
 
     user.subscription_plan = plan
     user.is_premium = plan == "premium"
-    user.subscription_expires_at = datetime.utcnow() + timedelta(days=30)
+    user.subscription_expires_at = now_utc() + timedelta(days=30)
     db.commit()
     return True
 
@@ -112,7 +114,7 @@ def list_subscription_plans() -> List[dict]:
 
 def get_plan_discount(user: User) -> int:
     """获取用户当前适用的折扣百分比。"""
-    if not user.subscription_expires_at or datetime.utcnow() > user.subscription_expires_at:
+    if not user.subscription_expires_at or now_utc() > as_utc(user.subscription_expires_at):
         return 100
     plan = SUBSCRIPTION_PLANS.get(user.subscription_plan, SUBSCRIPTION_PLANS["free"])
     return plan["discount_percent"]
