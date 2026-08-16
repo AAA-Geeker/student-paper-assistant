@@ -42,7 +42,7 @@ router = APIRouter(tags=["me"])
 
 @router.get("/profile", response_model=UserOut)
 def me(user: User = Depends(get_current_user)):
-    return user
+    return UserOut.model_validate(user)
 
 
 @router.get("/credits", response_model=CreditsOut)
