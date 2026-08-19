@@ -9,20 +9,12 @@ import { Button } from '../components/ui/button';
 import { aigcRewrite, estimateAigcRewrite, getProfile } from '../api/core';
 import type { WorkflowResponse, CoreEstimateResult } from '../api/core';
 
-/** 角色标签配置 */
-const ROLES = [
-  { id: 'plagiarism' as const, label: '降重降AIGC', desc: '适合查重或AIGC检测不通过的段落', icon: '🎯' },
-  { id: 'advisor' as const, label: '导师润色', desc: '根据导师批注意见修改润色段落', icon: '👨‍🏫' },
-  { id: 'reviewer' as const, label: '审稿润色', desc: '模拟审稿人视角优化论文表达', icon: '🔬' },
-];
-
 const platforms = ['知网', '维普', '万方', 'Turnitin', 'GPTZero', '格子达'];
 
 export default function AigcPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [text, setText] = useState('');
-  const [role, setRole] = useState<string>('plagiarism');
   const [platform, setPlatform] = useState('知网');
   const [urgent, setUrgent] = useState(false);
   const [estimate, setEstimate] = useState<CoreEstimateResult | null>(null);
@@ -49,7 +41,7 @@ export default function AigcPage() {
     try {
       const res = await estimateAigcRewrite({
         text: trimmed,
-        target: (role === 'advisor' || role === 'reviewer' ? 'both' : role) as 'plagiarism' | 'aigc' | 'both',
+        target: 'plagiarism',
         platform,
       });
       setEstimate(res.data);
@@ -68,7 +60,7 @@ export default function AigcPage() {
     try {
       const res = await aigcRewrite({
         text: text.trim(),
-        target: role === 'advisor' ? 'both' : role === 'reviewer' ? 'both' : (role as 'plagiarism' | 'aigc' | 'both'),
+        target: 'plagiarism',
         platform,
         urgent,
       });
@@ -99,36 +91,6 @@ export default function AigcPage() {
   // ── 步骤 ①：输入 ────────────────────────────────
   const renderInputStep = () => (
     <div className="space-y-6">
-      {/* 角色标签切换 */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-3">
-          选择改写角色
-        </label>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {ROLES.map((r) => (
-            <button
-              key={r.id}
-              type="button"
-              onClick={() => setRole(r.id)}
-              className={`relative text-left p-4 rounded-xl border-2 text-sm transition-all ${
-                role === r.id
-                  ? 'border-indigo-500 bg-indigo-50/60 ring-2 ring-indigo-200'
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
-              }`}
-            >
-              <div className="flex items-center gap-2 mb-1.5">
-                <span className="text-lg leading-none">{r.icon}</span>
-                <span className="font-semibold text-gray-900">{r.label}</span>
-                {role === r.id && (
-                  <CheckCircle2 size={14} className="ml-auto text-indigo-600" />
-                )}
-              </div>
-              <div className="text-xs text-gray-500 leading-relaxed">{r.desc}</div>
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* 文本区 */}
       <div>
         <div className="flex items-center justify-between mb-2">
