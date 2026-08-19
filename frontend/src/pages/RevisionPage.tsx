@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import ExportButtons from '../components/ExportButtons';
 import WorkflowSteps from '../components/WorkflowSteps';
+import FileImportButton from '../components/FileImportButton';
 import { Button } from '../components/ui/button';
 import { paperRevision, estimatePaperRevision, getProfile } from '../api/core';
 import type { WorkflowResponse } from '../api/core';
@@ -294,10 +295,13 @@ export default function RevisionPage() {
 
             {/* 论文原文输入 */}
             <div>
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-800 mb-2">
-                <FileEdit size={15} className="text-gray-400" />
-                粘贴论文原文（需要修改的段落） <span className="text-red-500">*</span>
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                  <FileEdit size={15} className="text-gray-400" />
+                  粘贴论文原文（需要修改的段落） <span className="text-red-500">*</span>
+                </label>
+                <FileImportButton onText={setText} hint=".doc 请另存为 .docx；PDF 需为可选中文本" />
+              </div>
               <textarea
                 className="w-full h-44 border border-gray-200 rounded-xl p-3.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow resize-y placeholder:text-gray-300"
                 placeholder="把论文中需要根据反馈意见修改的段落粘贴在这里..."

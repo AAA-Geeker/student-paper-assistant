@@ -136,6 +136,17 @@ export const uploadAdvisorPDF = (file: File) => {
   });
 };
 
+// 通用文件文本提取（Word/PDF/TXT → 文本）
+export const extractText = (file: File) => {
+  const form = new FormData();
+  form.append('file', file);
+  return client.post<{ text: string; filename: string; chars: number }>(
+    '/core/extract-text',
+    form,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  );
+};
+
 // 审稿人修改
 export interface ReviewerRevisionRequest {
   original_text: string;

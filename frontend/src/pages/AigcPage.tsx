@@ -4,6 +4,7 @@ import { Sparkles, ArrowLeft, Loader2, AlertCircle, Coins, CheckCircle2, Chevron
 import ComparisonView from '../components/ComparisonView';
 import WorkflowSteps from '../components/WorkflowSteps';
 import ExportButtons from '../components/ExportButtons';
+import FileImportButton from '../components/FileImportButton';
 import { Button } from '../components/ui/button';
 import { aigcRewrite, estimateAigcRewrite, getProfile } from '../api/core';
 import type { WorkflowResponse, CoreEstimateResult } from '../api/core';
@@ -130,9 +131,12 @@ export default function AigcPage() {
 
       {/* 文本区 */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          粘贴需要处理的文本
-        </label>
+        <div className="flex items-center justify-between mb-2">
+          <label className="block text-sm font-medium text-gray-700">
+            粘贴需要处理的文本
+          </label>
+          <FileImportButton onText={setText} hint="PDF 需为可选中文本（非扫描图片），.doc 请另存为 .docx" />
+        </div>
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}

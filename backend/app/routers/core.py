@@ -161,6 +161,22 @@ async def advisor_revision_upload(
     return await advisor_annotation_revision(text_content, annotations, user, db)
 
 
+# ─── 文件文本提取（供核心功能导入 Word/PDF） ────────────────────────
+@router.post("/extract-text")
+async def extract_text_endpoint(
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+):
+    """上传 .docx / .pdf / .txt 文件，返回提取出的纯文本，供粘贴或回填输入框。"""
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="缺少文件名")
+    content = await file.read()
+    from app.utils.file_extract import extract_text_from_file
+
+    text = extract_text_from_file(file.filename, content)
+    return {"text": text, "filename": file.filename, "chars": len(text)}
+
+
 # ─── 审稿人修改（Response Letter） ──────────────────────────────────
 
 @router.post("/reviewer-revision")

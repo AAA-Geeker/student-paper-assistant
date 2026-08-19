@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, ArrowLeft, Loader2, AlertCircle, CheckCircle, Info, Coins, FileEdit, ChevronRight, ScrollText } from 'lucide-react';
 import ExportButtons from '../components/ExportButtons';
 import WorkflowSteps from '../components/WorkflowSteps';
+import FileImportButton from '../components/FileImportButton';
 import { Button } from '../components/ui/button';
 import { preSubmissionReview, estimatePreSubmissionReview, getProfile } from '../api/core';
 import type { WorkflowResponse } from '../api/core';
@@ -196,7 +197,10 @@ export default function ReviewPage() {
                 <label className="text-sm font-medium text-gray-700">
                   粘贴论文内容
                 </label>
-                <span className="text-xs text-gray-400">建议包含摘要、方法、实验部分</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-gray-400">PDF 需为可选中文本（非扫描图片）</span>
+                  <FileImportButton onText={setText} />
+                </div>
               </div>
               <textarea
                 className="w-full h-56 border border-gray-200 rounded-xl p-4 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow resize-y bg-gray-50/50 hover:bg-white focus:bg-white"
