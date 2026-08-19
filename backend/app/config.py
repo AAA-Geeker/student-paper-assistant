@@ -44,13 +44,14 @@ class Settings(BaseSettings):
     }
 
     # ─── 邮箱验证（注册）────────────────────────────────────────────
-    # 注册需先发送验证码到邮箱并校验，防止用虚假邮箱注册。163 邮箱示例：
-    #   EMAIL_SMTP_HOST=smtp.163.com  EMAIL_SMTP_PORT=465
-    #   EMAIL_SMTP_USER=你的邮箱  EMAIL_SMTP_PASSWORD=授权码（非登录密码）
-    #   EMAIL_FROM=你的邮箱（与 SMTP_USER 通常一致）
+    # 注册需先发送验证码到邮箱并校验，防止用虚假邮箱注册。QQ 邮箱示例（推荐，需授权码）：
+    #   EMAIL_SMTP_HOST=smtp.qq.com  EMAIL_SMTP_PORT=465  EMAIL_SMTP_USER=2807203233@qq.com  EMAIL_SMTP_PASSWORD=（16位授权码，非QQ登录密码）
+    #   EMAIL_FROM=2807203233@qq.com
+    # 授权码获取：QQ邮箱网页版 → 设置 → 账户 → POP3/IMAP/SMTP服务 → 开启SMTP 生成16位授权码。
+    # 注意：QQ 邮箱对单日发信总量有风控上限，同一收件人 1 分钟最多 2 封；触发风控次日恢复。
     # 未配置时 send-code 接口返回提示不发送（前端可感知），配置后即真正发信。
     EMAIL_SMTP_ENABLED: bool = False
-    EMAIL_SMTP_HOST: str = "smtp.163.com"
+    EMAIL_SMTP_HOST: str = "smtp.qq.com"
     EMAIL_SMTP_PORT: int = 465
     EMAIL_SMTP_USER: str = ""
     EMAIL_SMTP_PASSWORD: str = ""

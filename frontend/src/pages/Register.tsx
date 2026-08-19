@@ -139,7 +139,7 @@ export default function Register() {
                     {cooldown > 0 ? `${cooldown}s 后重发` : '发送验证码'}
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">验证码将发送到你填写的邮箱，用于确认邮箱真实有效</p>
+                <p className="text-xs text-muted-foreground mt-1">验证码将发送到你填写的邮箱。若未收到，请检查垃圾箱（QQ/163 邮箱收信更稳定）</p>
               </div>
 
               <Button type="submit" disabled={loading} className="w-full">

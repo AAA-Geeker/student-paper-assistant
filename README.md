@@ -80,18 +80,19 @@ npm run dev
 
 ### 3. 邮箱验证配置（本地）
 
-注册需邮箱验证码，需配置 SMTP（163 邮箱 + 授权码），写入 `backend/.env`：
+注册需邮箱验证码，需配置 SMTP（**QQ 邮箱推荐**，腾讯云生产环境兼容），写入 `backend/.env`：
 
 ```
 EMAIL_SMTP_ENABLED=true
-EMAIL_SMTP_HOST=smtp.163.com
+EMAIL_SMTP_HOST=smtp.qq.com
 EMAIL_SMTP_PORT=465
-EMAIL_SMTP_USER=你的163邮箱
-EMAIL_SMTP_PASSWORD=你的授权码    # 非登录密码，163 网页版 POP3/SMTP/IMAP 生成
-EMAIL_FROM=你的163邮箱
+EMAIL_SMTP_USER=你的QQ邮箱
+EMAIL_SMTP_PASSWORD=16位授权码    # 非QQ登录密码，QQ邮箱网页版 设置→账户→POP3/IMAP/SMTP服务 生成
+EMAIL_FROM=你的QQ邮箱
 ```
 
-未配置 SMTP 时，发送验证码接口会提示"邮箱服务未配置"。
+> 163 邮箱同样支持：将 HOST 换成 `smtp.163.com`、授权码在 163 网页版设置→POP3/SMTP/IMAP 生成。
+> 未配置 SMTP 时，发送验证码接口会提示"邮箱服务未配置"。
 
 ### 测试
 

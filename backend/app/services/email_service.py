@@ -1,7 +1,9 @@
-"""邮箱验证服务：发送 163 SMTP 验证码 + 验证码生成 / 存储 / 校验。
+"""邮箱验证服务：发送 QQ 邮箱(SMTP) 验证码 + 验证码生成 / 存储 / 校验。
 
 - 验证码以 EmailVerification 行存库，支持 used / expires_at 状态。
-- 发信走 smtplib SSL（163 用 465 端口 + 授权码）。
+- 发信走 smtplib SSL（QQ/163 均用 465 端口 + 授权码，本服务默认 smtp.qq.com）。
+- 发送失败时对常见 SMTP 错误分类并给出用户可理解的提示（尤其 QQ 邮箱的
+  当日发信上限风控、收件人频控、授权码错误等）。
 - 未配置 SMTP（EMAIL_SMTP_ENABLED=False 或 user 为空）时，send_code 返回
   明确的提示而不发信，避免生产环境直接报错；配置后即真正发信。
 """
@@ -51,7 +53,7 @@ def smtp_configured() -> bool:
 
 
 def _send_via_smtp(to_email: str, code: str) -> None:
-    """通过 163 SMTP 发送验证码。失败抛异常由调用方处理。"""
+    """通过 SMTP 发送验证码。失败抛带友好提示的异常，由调用方回显。"""
     sender = settings.EMAIL_FROM or settings.EMAIL_SMTP_USER
     subject = "【学生论文写作助手】注册验证码"
     body = (
@@ -75,6 +77,21 @@ def _send_via_smtp(to_email: str, code: str) -> None:
             server.quit()
         except Exception:
             pass
+
+
+def _friendly_smtp_error(exc: Exception) -> str:
+    """把底层 SMTP 异常转成对用户友好的中文提示。"""
+    msg = str(exc).lower()
+    if "authentication" in msg or "auth" in msg or "535" in msg or "login" in msg:
+        return "SMTP 授权失败：请检查发信邮箱的授权码是否正确（需在QQ邮箱开启SMTP服务生成16位授权码）"
+    if "550" in msg or "554" in msg or "denied" in msg or "freq" in msg or "frequency" in msg:
+        return (
+            "邮件被邮件服务器拦截：可能触发QQ邮箱当日发信上限或被收件方频控"
+            "（同一收件人1分钟最多2封）。请明日再试。"
+        )
+    if "timed out" in msg or "timeout" in msg or "connection" in msg:
+        return "SMTP 连接超时：请检查 EMAIL_SMTP_HOST / EMAIL_SMTP_PORT 是否正确"
+    return "发送失败（{}）".format(exc)
 
 
 def too_many_recent_codes(db: Session, email: str) -> bool:
@@ -111,7 +128,7 @@ def send_code(db: Session, email: str):
         _send_via_smtp(email, code)
     except Exception as e:  # noqa: BLE001
         db.rollback()
-        return False, "验证码发送失败：{}".format(e)
+        return False, _friendly_smtp_error(e)
 
     db.commit()
     return True, "验证码已发送到 {}，{} 分钟内有效".format(email, settings.EMAIL_CODE_TTL_MINUTES)
