@@ -6,8 +6,8 @@ import WorkflowSteps from '../components/WorkflowSteps';
 import ExportButtons from '../components/ExportButtons';
 import FileImportButton from '../components/FileImportButton';
 import { Button } from '../components/ui/button';
-import { aigcRewrite, estimateAigcRewrite, getProfile } from '../api/core';
-import type { WorkflowResponse, CoreEstimateResult } from '../api/core';
+import { aigcRewrite, getProfile } from '../api/core';
+import type { WorkflowResponse } from '../api/core';
 
 const platforms = ['知网', '维普', '万方', 'Turnitin', 'GPTZero', '格子达'];
 
@@ -16,8 +16,6 @@ export default function AigcPage() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [text, setText] = useState('');
   const [platform, setPlatform] = useState('知网');
-  const [urgent, setUrgent] = useState(false);
-  const [estimate, setEstimate] = useState<CoreEstimateResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<WorkflowResponse | null>(null);
   const [error, setError] = useState('');
@@ -29,8 +27,8 @@ export default function AigcPage() {
       .catch(() => { /* not logged in */ });
   }, []);
 
-  // ── 费用估算 ──────────────────────────────────
-  const handleEstimate = async () => {
+  // ── 直接执行 ────────────────────────────────────
+  const handleSubmit = async () => {
     const trimmed = text.trim();
     if (trimmed.length < 100) {
       setError('请输入至少 100 字');
@@ -39,30 +37,10 @@ export default function AigcPage() {
     setError('');
     setLoading(true);
     try {
-      const res = await estimateAigcRewrite({
+      const res = await aigcRewrite({
         text: trimmed,
         target: 'plagiarism',
         platform,
-      });
-      setEstimate(res.data);
-      setStep(2);
-    } catch (e: any) {
-      setError(e?.response?.data?.detail ?? e?.message ?? '请求失败，请检查网络或重新登录');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ── 提交改写 ────────────────────────────────────
-  const handleSubmit = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const res = await aigcRewrite({
-        text: text.trim(),
-        target: 'plagiarism',
-        platform,
-        urgent,
       });
       setResult(res.data);
       setStep(3);
@@ -77,14 +55,10 @@ export default function AigcPage() {
     }
   };
 
-  const isBalanceLow =
-    credits !== null && estimate !== null && !estimate.is_free && credits < estimate.points;
-
   const resetForm = () => {
     setStep(1);
     setResult(null);
     setText('');
-    setEstimate(null);
     setError('');
   };
 
@@ -138,21 +112,6 @@ export default function AigcPage() {
         </div>
       </div>
 
-      {/* 加急 */}
-      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
-        <input
-          id="urgent"
-          type="checkbox"
-          checked={urgent}
-          onChange={(e) => setUrgent(e.target.checked)}
-          className="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4"
-        />
-        <label htmlFor="urgent" className="text-sm text-gray-700 cursor-pointer select-none">
-          <span className="font-medium">加急处理</span>
-          <span className="text-gray-400 ml-1">（2 倍点数，优先返回）</span>
-        </label>
-      </div>
-
       {error && (
         <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
           <AlertCircle size={16} className="shrink-0 mt-0.5" />
@@ -162,92 +121,18 @@ export default function AigcPage() {
 
       <Button
         type="button"
-        onClick={handleEstimate}
+        onClick={handleSubmit}
         disabled={loading || text.length < 100}
         className="w-full gap-2"
       >
         {loading ? (
-          <><Loader2 size={18} className="animate-spin" /> 计算中…</>
+          <><Loader2 size={18} className="animate-spin" /> 处理中…</>
         ) : (
-          <><span>下一步：预估费用</span><ChevronRight size={18} /></>
+          <><Sparkles size={18} /> 开始处理</>
         )}
       </Button>
     </div>
   );
-
-  // ── 步骤 ②：确认 ────────────────────────────────
-  const renderConfirmStep = () => {
-    if (!estimate) return null;
-    return (
-      <div className="space-y-5">
-        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <CheckCircle2 size={18} className="text-indigo-600" />
-            <h3 className="font-bold text-indigo-900">费用预估</h3>
-          </div>
-          <p className="text-sm text-indigo-800 mb-1">
-            本次处理约 {text.length} 字，预计消耗
-            <span className="font-bold mx-1">
-              {estimate.is_free ? '0' : estimate.points} 点
-            </span>
-          </p>
-          <p className="text-xs text-indigo-600">
-            {estimate.is_free
-              ? '今天还有免费次数，本次不扣点 ✓'
-              : '确认后将立即扣点并执行'}
-          </p>
-        </div>
-
-        {isBalanceLow && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-            <div className="flex items-start gap-2">
-              <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-red-800">点数不足</p>
-                <p className="text-xs text-red-600 mt-1">
-                  当前余额 {credits?.toFixed(0)} 点，需要 {estimate.points} 点
-                </p>
-                <button
-                  type="button"
-                  onClick={() => navigate('/credits')}
-                  className="mt-2 px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  去充值 →
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="flex gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setStep(1)}
-            className="flex-1 gap-2"
-          >
-            返回修改
-          </Button>
-          <Button
-            type="button"
-            onClick={handleSubmit}
-            disabled={loading || isBalanceLow}
-            className="flex-1 gap-2"
-          >
-            {loading && <Loader2 size={18} className="animate-spin" />}
-            {loading ? '正在处理…' : `确认并执行（${urgent ? (estimate.points * 2) : estimate.points} 点）`}
-          </Button>
-        </div>
-
-        {error && (
-          <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-            <AlertCircle size={16} className="shrink-0 mt-0.5" />
-            <span>{error}</span>
-          </div>
-        )}
-      </div>
-    );
-  };
 
   // ── 步骤 ③：结果 ────────────────────────────────
   const renderResultStep = () => {
@@ -354,7 +239,7 @@ export default function AigcPage() {
 
           {/* 步骤指示器 */}
           <div className="flex items-center gap-2 mb-6 text-sm">
-            {(['输入文本', '确认费用', '查看结果'] as const).map((label, idx) => {
+            {(['输入文本', '查看结果'] as const).map((label, idx) => {
               const stepNum = (idx + 1) as 1 | 2 | 3;
               const isActive = step === stepNum;
               const isDone = step > stepNum;
@@ -418,7 +303,6 @@ export default function AigcPage() {
 
           {/* 步骤内容 */}
           {step === 1 && renderInputStep()}
-          {step === 2 && renderConfirmStep()}
           {step === 3 && renderResultStep()}
         </div>
       </div>

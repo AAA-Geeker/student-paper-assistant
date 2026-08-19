@@ -2,21 +2,15 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   FileEdit, ArrowLeft, Loader2, AlertCircle, CheckCircle, Info, Coins,
-  User, BookOpen, Pencil, MessageSquare, RefreshCw, Upload,
-  ChevronRight, Copy
+  User, BookOpen, Pencil, MessageSquare, Upload,
+  Copy
 } from 'lucide-react';
 import ExportButtons from '../components/ExportButtons';
 import WorkflowSteps from '../components/WorkflowSteps';
 import FileImportButton from '../components/FileImportButton';
 import { Button } from '../components/ui/button';
-import { paperRevision, estimatePaperRevision, advisorRevision, uploadAdvisorPDF, reviewerRevision, getProfile } from '../api/core';
+import { paperRevision, advisorRevision, uploadAdvisorPDF, reviewerRevision, getProfile } from '../api/core';
 import type { WorkflowResponse } from '../api/core';
-
-const revisionStyles = [
-  { id: 'minimal' as const, label: '最小改动', desc: '只修改反馈中明确指出的问题，尽量保持原文结构' },
-  { id: 'standard' as const, label: '标准改写', desc: '针对每条反馈重写相关段落，提升表达质量（推荐）' },
-  { id: 'deep' as const, label: '深度重构', desc: '必要时调整段落结构、补充论证、重新组织内容' },
-];
 
 const scenarioTags = [
   {
@@ -51,7 +45,7 @@ const scenarioTags = [
   },
 ];
 
-type Step = 'input' | 'confirm' | 'result';
+type Step = 'input' | 'result';
 
 const workflowNodes = {
   input: [
@@ -119,11 +113,8 @@ export default function RevisionPage() {
 
   const [text, setText] = useState(locationState?.originalText || '');
   const [feedback, setFeedback] = useState(locationState?.feedback || '');
-  const [scenario, setScenario] = useState('advisor');
-  const [style, setStyle] = useState<'minimal' | 'standard' | 'deep'>('standard');
-  const [urgent, setUrgent] = useState(false);
+  const [scenario, setScenario] = useState(locationState?.scenario || 'advisor');
 
-  const [estimate, setEstimate] = useState<{ points: number; is_free: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<WorkflowResponse | null>(null);
   const [error, setError] = useState('');
@@ -141,27 +132,13 @@ export default function RevisionPage() {
     if (locationState?.scenario) setScenario(locationState.scenario);
   }, [locationState]);
 
-  const handleEstimate = async () => {
+  /** 校验输入，然后按所选场景分发给对应后端能力，直接执行 */
+  const handleStart = async () => {
     if (text.length < 100) { setError('请输入至少 100 字的论文内容'); return; }
     if (!feedback.trim()) {
       setError(scenario === 'advisor' ? '请输入导师批注意见' : scenario === 'reviewer' ? '请输入审稿人意见' : '请输入反馈意见');
       return;
     }
-    setError('');
-    setLoading(true);
-    try {
-      const res = await estimatePaperRevision({ text, feedback, style });
-      setEstimate(res.data);
-      setStep('confirm');
-    } catch (e: any) {
-      setError(e.response?.data?.detail || '请求失败，请检查网络或重新登录');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  /** 按所选场景分发到对应后端能力 */
-  const handleSubmit = async () => {
     setLoading(true);
     setError('');
     try {
@@ -171,7 +148,7 @@ export default function RevisionPage() {
       } else if (scenario === 'reviewer') {
         res = await reviewerRevision({ original_text: text, reviewer_comments: feedback });
       } else {
-        res = await paperRevision({ text, feedback, style, urgent });
+        res = await paperRevision({ text, feedback });
       }
       setResult(res.data);
       setStep('result');
@@ -202,7 +179,6 @@ export default function RevisionPage() {
   const resetAll = () => {
     setStep('input');
     setResult(null);
-    setEstimate(null);
     setError('');
     setCopied(false);
   };
@@ -213,8 +189,6 @@ export default function RevisionPage() {
       setTimeout(() => setCopied(false), 2000);
     });
   };
-
-  const isBalanceLow = credits !== null && estimate !== null && !estimate.is_free && credits < estimate.points;
 
   const activeScenarioTag = scenarioTags.find(s => s.id === scenario);
 
@@ -389,59 +363,13 @@ export default function RevisionPage() {
               </div>
             </div>
 
-            {/* 修改风格选择（自我修改场景才有） */}
-            {scenario === 'self' && (
-            <div className="bg-gray-50 rounded-xl p-4">
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-800 mb-3">
-                <RefreshCw size={15} className="text-gray-400" />
-                修改风格
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                {revisionStyles.map((s) => (
-                  <button
-                    key={s.id}
-                    onClick={() => setStyle(s.id as 'minimal' | 'standard' | 'deep')}
-                    className={`text-left p-3 rounded-xl border text-sm transition-all ${
-                      style === s.id
-                        ? 'border-indigo-500 bg-white ring-1 ring-indigo-300 shadow-sm'
-                        : 'border-gray-200 bg-white hover:border-gray-300'
-                    }`}
-                  >
-                    <div className={`font-semibold mb-0.5 ${style === s.id ? 'text-indigo-700' : 'text-gray-800'}`}>
-                      {s.label}
-                    </div>
-                    <div className="text-xs text-gray-500 leading-relaxed">{s.desc}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-            )}
-
-            {/* 加急处理（自我修改场景才有） */}
-            {scenario === 'self' && (
-            <div>
-              <label className="flex items-center gap-2.5 px-4 py-2.5 bg-white border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={urgent}
-                  onChange={(e) => setUrgent(e.target.checked)}
-                  className="rounded text-indigo-600 focus:ring-indigo-500"
-                />
-                <div>
-                  <div className="text-sm font-medium text-gray-700">加急处理</div>
-                  <div className="text-xs text-gray-400">2 倍点数，优先返回</div>
-                </div>
-              </label>
-            </div>
-            )}
-
             {/* 提示横幅 */}
             <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4 border border-indigo-100">
               <div className="flex items-start gap-2.5">
                 <Info size={16} className="shrink-0 mt-0.5 text-indigo-400" />
                 <div className="text-xs text-indigo-700 leading-relaxed">
-                  <span className="font-medium">先估算、后执行。</span>
-                  点击下方按钮先看看要消耗多少点数，确认后再执行，不会提前扣点。
+                  <span className="font-medium">点击执行即可。</span>
+                  系统将直接生成修改方案，无需额外确认。
                 </div>
               </div>
             </div>
@@ -454,108 +382,21 @@ export default function RevisionPage() {
             )}
 
             <Button
-              onClick={handleEstimate}
+              onClick={handleStart}
               disabled={loading}
               className="w-full gap-2"
             >
               {loading ? (
-                <><Loader2 size={18} className="animate-spin" /> 估算中...</>
+                <><Loader2 size={18} className="animate-spin" /> 处理中...</>
               ) : (
-                <>下一步 <ChevronRight size={18} /></>
+                <><FileEdit size={18} /> 开始修改</>
               )}
             </Button>
           </div>
         </div>
       )}
 
-      {/* ======== STEP 2: 确认 ======== */}
-      {step === 'confirm' && estimate && (
-        <div className="bg-card rounded-2xl shadow-sm border border-border p-6 space-y-5">
-          {/* 费用估算 */}
-          <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <CheckCircle size={18} className="text-emerald-600" />
-              <h3 className="font-bold text-emerald-900">费用预估</h3>
-            </div>
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between text-emerald-800">
-                <span>论文原文</span>
-                <span className="font-medium">{text.length} 字</span>
-              </div>
-              {scenario === 'self' && (
-              <div className="flex items-center justify-between text-emerald-800">
-                <span>修改风格</span>
-                <span className="font-medium">{revisionStyles.find(s => s.id === style)?.label}</span>
-              </div>
-              )}
-              <div className="flex items-center justify-between text-emerald-800">
-                <span>修改场景</span>
-                <span className="font-medium">{scenarioTags.find(s => s.id === scenario)?.label}</span>
-              </div>
-              <div className="border-t border-emerald-200 pt-2 mt-2 flex items-center justify-between">
-                <span className="font-semibold text-emerald-900">预计消耗</span>
-                <span className="text-lg font-bold text-emerald-700">
-                  {estimate.is_free ? '0 点' : `${estimate.points} 点`}
-                </span>
-              </div>
-              <p className="text-xs text-emerald-600 mt-1">
-                {estimate.is_free ? '今日还有免费次数，本次不扣点' : '确认后将立即扣点并生成修改方案'}
-              </p>
-            </div>
-          </div>
-
-          {/* 余额不足提示 */}
-          {isBalanceLow && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-              <div className="flex items-start gap-2.5">
-                <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-semibold text-red-800">点数不足</p>
-                  <p className="text-xs text-red-600 mt-1">
-                    当前余额 {credits?.toFixed(0)} 点，需要 {estimate.points} 点
-                  </p>
-                  <button
-                    onClick={() => navigate('/credits')}
-                    className="mt-2 px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700 transition-colors"
-                  >
-                    去充值 →
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* 操作按钮 */}
-          <div className="flex gap-3">
-            <button
-              onClick={() => setStep('input')}
-              className="flex-1 py-2.5 border-2 border-gray-200 rounded-xl text-gray-600 font-medium hover:bg-gray-50 hover:border-gray-300 transition-all"
-            >
-              返回修改
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={loading || isBalanceLow}
-              className="flex-1 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white py-2.5 rounded-xl font-semibold hover:from-emerald-700 hover:to-emerald-800 transition-all shadow-md shadow-emerald-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <><Loader2 size={18} className="animate-spin" /> 正在修改...</>
-              ) : (
-                <><CheckCircle size={18} /> 确认并生成方案</>
-              )}
-            </button>
-          </div>
-
-          {error && (
-            <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-              <AlertCircle size={15} className="shrink-0" />
-              {error}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ======== STEP 3: 结果 ======== */}
+      {/* ======== STEP 2 结果 ======== */}
       {step === 'result' && result && (
         <div className="space-y-5">
           {/* 结果头部：标签 + 导出 */}
@@ -566,13 +407,6 @@ export default function RevisionPage() {
                 <User size={13} />
                 {activeScenarioTag.label}
               </div>
-            )}
-            {/* 风格标签 */}
-            {scenario === 'self' && (
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-xs font-medium text-indigo-700">
-              <RefreshCw size={13} />
-              {revisionStyles.find(s => s.id === style)?.label}
-            </div>
             )}
             {/* 字数变化 */}
             {result.comparison && (

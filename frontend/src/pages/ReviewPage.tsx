@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, ArrowLeft, Loader2, AlertCircle, CheckCircle, Info, Coins, FileEdit, ChevronRight, ScrollText } from 'lucide-react';
+import { ShieldCheck, ArrowLeft, Loader2, AlertCircle, Info, Coins, FileEdit, ChevronRight, ScrollText } from 'lucide-react';
 import ExportButtons from '../components/ExportButtons';
 import WorkflowSteps from '../components/WorkflowSteps';
 import FileImportButton from '../components/FileImportButton';
 import { Button } from '../components/ui/button';
-import { preSubmissionReview, estimatePreSubmissionReview, getProfile } from '../api/core';
+import { preSubmissionReview, getProfile } from '../api/core';
 import type { WorkflowResponse } from '../api/core';
 
 const venueGroups = [
@@ -32,14 +32,6 @@ const venueGroups = [
   },
 ];
 
-const allVenues = venueGroups.flatMap(g => g.venues);
-
-const availableModels = [
-  { id: 'deepseek', label: 'DeepSeek (省钱)', desc: '性价比最高，适合日常使用' },
-  { id: 'gpt-4o-mini', label: 'GPT-4o-mini (标准)', desc: '质量稳定，中等消耗' },
-  { id: 'gpt-4o', label: 'GPT-4o (高级)', desc: '质量最佳，消耗较高' },
-];
-
 const sceneTags = [
   { id: 'conference', label: 'ACL/EMNLP审稿', icon: '🎯', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
   { id: 'sci', label: 'SCI期刊审稿', icon: '📘', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
@@ -57,9 +49,6 @@ export default function ReviewPage() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [text, setText] = useState('');
   const [venue, setVenue] = useState('ACL');
-  const [urgent, setUrgent] = useState(false);
-  const [model, setModel] = useState('deepseek');
-  const [estimate, setEstimate] = useState<{ points: number; is_free: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<WorkflowResponse | null>(null);
   const [error, setError] = useState('');
@@ -69,26 +58,12 @@ export default function ReviewPage() {
     getProfile().then(r => setCredits(r.data.credits)).catch(() => {});
   }, []);
 
-  const handleEstimate = async () => {
+  const handleSubmit = async () => {
     if (text.length < 300) { setError('请输入至少 300 字，建议包含摘要和核心章节'); return; }
     setError('');
     setLoading(true);
     try {
-      const res = await estimatePreSubmissionReview({ text, venue });
-      setEstimate(res.data);
-      setStep(2);
-    } catch (e: any) {
-      setError(e.response?.data?.detail || '请求失败，请检查网络或重新登录');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSubmit = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const res = await preSubmissionReview({ text, venue, urgent, model });
+      const res = await preSubmissionReview({ text, venue });
       setResult(res.data);
       setStep(3);
       getProfile().then(r => setCredits(r.data.credits));
@@ -99,7 +74,6 @@ export default function ReviewPage() {
     }
   };
 
-  const isBalanceLow = credits !== null && estimate !== null && !estimate.is_free && credits < estimate.points;
   const scene = getSceneTag(venue);
 
   return (
@@ -214,118 +188,16 @@ export default function ReviewPage() {
               </div>
             </div>
 
-            {/* 折叠设置区 */}
-            <details className="group">
-              <summary className="flex items-center gap-1.5 text-sm text-gray-500 cursor-pointer hover:text-gray-700 select-none">
-                <span className="text-xs opacity-60">▸</span>
-                <span>高级设置（模型选择、加急处理）</span>
-              </summary>
-              <div className="mt-4 space-y-4 pl-1">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">AI 模型</label>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    {availableModels.map((m) => (
-                      <button
-                        key={m.id}
-                        onClick={() => setModel(m.id)}
-                        className={`text-left p-2.5 rounded-lg border text-sm transition-all ${
-                          model === m.id ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-300' : 'border-gray-200 hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className="font-medium text-gray-900">{m.label}</div>
-                        <div className="text-xs text-gray-500">{m.desc}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-100">
-                  <input
-                    id="urgent-review"
-                    type="checkbox"
-                    checked={urgent}
-                    onChange={(e) => setUrgent(e.target.checked)}
-                    className="rounded text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <label htmlFor="urgent-review" className="text-sm text-gray-700">加急处理（2 倍点数，优先返回）</label>
-                </div>
-              </div>
-            </details>
-
             {error && <p className="text-sm text-red-600 flex items-center gap-1.5 bg-red-50 border border-red-100 rounded-lg px-3 py-2"><AlertCircle size={14} /> {error}</p>}
 
             <Button
-              onClick={handleEstimate}
+              onClick={handleSubmit}
               disabled={loading || text.length < 300}
               className="w-full gap-2"
             >
               {loading && <Loader2 size={18} className="animate-spin" />}
-              {loading ? '计算费用中...' : '下一步：预估费用'}
+              {loading ? '审查中...' : <><ShieldCheck size={18} /> 开始审查</>}
             </Button>
-          </div>
-        )}
-
-        {/* 步骤2：费用确认 */}
-        {step === 2 && estimate && (
-          <div className="p-6 space-y-5">
-            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="p-1.5 bg-indigo-100 rounded-lg">
-                  <CheckCircle size={16} className="text-indigo-600" />
-                </div>
-                <h3 className="font-bold text-indigo-900">费用预估</h3>
-              </div>
-              <div className="space-y-2">
-                <p className="text-sm text-gray-700">
-                  目标期刊：
-                  <span className="font-medium text-indigo-700">{allVenues.find(v => v.id === venue)?.label || venue}</span>
-                </p>
-                <p className="text-sm text-gray-700">
-                  论文长度：
-                  <span className="font-medium">{text.length} 字</span>
-                </p>
-                <div className="flex items-center gap-2 pt-2 border-t border-indigo-100">
-                  <span className="text-sm text-gray-600">预计消耗</span>
-                  <span className="text-xl font-bold text-indigo-700">{estimate.is_free ? '0' : estimate.points} 点</span>
-                  {estimate.is_free && (
-                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium">今日免费</span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* 余额不足警示 */}
-            {isBalanceLow && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                <div className="flex items-start gap-2">
-                  <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-red-800">点数不足</p>
-                    <p className="text-xs text-red-600 mt-1">当前余额 {credits?.toFixed(0)} 点，需要 {estimate.points} 点</p>
-                    <button
-                      onClick={() => navigate('/credits')}
-                      className="mt-2 px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700 transition-colors"
-                    >
-                      去充值 →
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="flex gap-3">
-              <button onClick={() => setStep(1)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all">
-                返回修改
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={loading || isBalanceLow}
-                className="flex-1 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white py-2.5 rounded-xl font-medium hover:from-indigo-700 hover:to-indigo-800 disabled:opacity-60 transition-all flex items-center justify-center gap-2 shadow-sm"
-              >
-                {loading && <Loader2 size={18} className="animate-spin" />}
-                {loading ? '正在生成审稿报告...' : '确认并生成报告'}
-              </button>
-            </div>
-            {error && <p className="text-sm text-red-600 flex items-center gap-1.5 bg-red-50 border border-red-100 rounded-lg px-3 py-2"><AlertCircle size={14} /> {error}</p>}
           </div>
         )}
 
