@@ -33,13 +33,13 @@ const roleFeatures = [
     id: 'advisor-revision', title: '导师批注修改', subtitle: '导入含批注PDF或粘贴意见',
     icon: MessageSquareText, color: 'bg-violet-50 text-violet-600 border-violet-200', hoverColor: 'hover:border-violet-400',
     desc: '导入导师在PDF上的批注，自动解析并逐条生成修改方案。',
-    tags: ['PDF导入', '批注解析'], cta: '处理批注', path: '/advisor-revision',
+    tags: ['PDF导入', '批注解析'], cta: '处理批注', path: '/revision', scenario: 'advisor',
   },
   {
     id: 'reviewer-revision', title: '审稿人修改', subtitle: '逐条回复 + Response Letter',
     icon: MessageSquareReply, color: 'bg-orange-50 text-orange-600 border-orange-200', hoverColor: 'hover:border-orange-400',
     desc: '收到审稿人评审意见？逐条回复、修改论文、输出Response Letter。',
-    tags: ['审稿回复', '修改对照'], cta: '开始处理', path: '/reviewer-revision',
+    tags: ['审稿回复', '修改对照'], cta: '开始处理', path: '/revision', scenario: 'reviewer',
   },
 ];
 
@@ -139,7 +139,7 @@ export default function Dashboard() {
           {roleFeatures.map((f) => {
             const Icon = f.icon;
             return (
-              <div key={f.id} onClick={() => navigate(f.path)}
+              <div key={f.id} onClick={() => navigate(f.path, { state: { scenario: f.scenario } })}
                 className={`group relative rounded-2xl border-2 p-5 cursor-pointer transition-all hover:-translate-y-1 hover:shadow-xl ${f.color} ${f.hoverColor}`}
               >
                 <div className="flex items-start justify-between mb-2">

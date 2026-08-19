@@ -11,8 +11,6 @@ import RevisionPage from './pages/RevisionPage';
 import CreditsPage from './pages/CreditsPage';
 import AuxPage from './pages/AuxPage';
 import Editor from './pages/Editor';
-import AdvisorRevisionPage from './pages/AdvisorRevisionPage';
-import ReviewerRevisionPage from './pages/ReviewerRevisionPage';
 
 export default function App() {
   return (
@@ -27,9 +25,9 @@ export default function App() {
         <Route path="/aigc" element={<AigcPage />} />
         <Route path="/review" element={<ReviewPage />} />
         <Route path="/revision" element={<RevisionPage />} />
-        {/* 多角色场景入口 */}
-        <Route path="/advisor-revision" element={<AdvisorRevisionPage />} />
-        <Route path="/reviewer-revision" element={<ReviewerRevisionPage />} />
+        {/* 多角色场景入口已并入「论文修改」页，旧地址重定向 */}
+        <Route path="/advisor-revision" element={<Navigate to="/revision" replace />} />
+        <Route path="/reviewer-revision" element={<Navigate to="/revision" replace />} />
         {/* 资产与商业化 */}
         <Route path="/credits" element={<CreditsPage />} />
         {/* 辅助功能 */}

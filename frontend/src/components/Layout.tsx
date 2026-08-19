@@ -143,8 +143,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <Link to="/aigc" className="block py-2 text-foreground" onClick={() => setMobileMenuOpen(false)}>降重 / 降 AIGC</Link>
                 <Link to="/review" className="block py-2 text-foreground" onClick={() => setMobileMenuOpen(false)}>投稿前审查</Link>
                 <Link to="/revision" className="block py-2 text-foreground" onClick={() => setMobileMenuOpen(false)}>论文修改</Link>
-                <Link to="/advisor-revision" className="block py-2 text-foreground" onClick={() => setMobileMenuOpen(false)}>导师批注修改</Link>
-                <Link to="/reviewer-revision" className="block py-2 text-foreground" onClick={() => setMobileMenuOpen(false)}>审稿人修改</Link>
                 <Link to="/credits" className="block py-2 text-foreground" onClick={() => setMobileMenuOpen(false)}>我的资产</Link>
                 <div className="pt-1 mt-1 border-t">
                   <button onClick={() => { setMobileMenuOpen(false); handleLogout(); }} className="block py-2 text-destructive w-full text-left">

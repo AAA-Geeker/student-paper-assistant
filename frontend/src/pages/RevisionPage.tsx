@@ -1,15 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   FileEdit, ArrowLeft, Loader2, AlertCircle, CheckCircle, Info, Coins,
-  User, BookOpen, Pencil, MessageSquare, RefreshCw,
+  User, BookOpen, Pencil, MessageSquare, RefreshCw, Upload,
   ChevronRight, Copy
 } from 'lucide-react';
 import ExportButtons from '../components/ExportButtons';
 import WorkflowSteps from '../components/WorkflowSteps';
 import FileImportButton from '../components/FileImportButton';
 import { Button } from '../components/ui/button';
-import { paperRevision, estimatePaperRevision, getProfile } from '../api/core';
+import { paperRevision, estimatePaperRevision, advisorRevision, uploadAdvisorPDF, reviewerRevision, getProfile } from '../api/core';
 import type { WorkflowResponse } from '../api/core';
 
 const revisionStyles = [
@@ -80,6 +80,36 @@ const workflowNodes = {
   ],
 };
 
+/** 导师场景专用：上传带批注 PDF，调用后端直接生成批注修改结果 */
+function AdvisorPdfUploadButton({ loading, onFile }: { loading: boolean; onFile: (file: File) => void }) {
+  const ref = useRef<HTMLInputElement>(null);
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-gray-400 hidden sm:inline">支持含高亮/批注的PDF</span>
+      <button
+        type="button"
+        disabled={loading}
+        onClick={() => ref.current?.click()}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-violet-200 bg-violet-50 text-violet-700 text-sm font-medium hover:bg-violet-100 disabled:opacity-50 transition-colors"
+      >
+        {loading ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
+        上传带批注PDF
+      </button>
+      <input
+        ref={ref}
+        type="file"
+        accept=".pdf"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) onFile(f);
+          e.target.value = '';
+        }}
+      />
+    </div>
+  );
+}
+
 export default function RevisionPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -113,7 +143,10 @@ export default function RevisionPage() {
 
   const handleEstimate = async () => {
     if (text.length < 100) { setError('请输入至少 100 字的论文内容'); return; }
-    if (!feedback.trim()) { setError('请输入导师或审稿人的反馈意见'); return; }
+    if (!feedback.trim()) {
+      setError(scenario === 'advisor' ? '请输入导师批注意见' : scenario === 'reviewer' ? '请输入审稿人意见' : '请输入反馈意见');
+      return;
+    }
     setError('');
     setLoading(true);
     try {
@@ -127,16 +160,40 @@ export default function RevisionPage() {
     }
   };
 
+  /** 按所选场景分发到对应后端能力 */
   const handleSubmit = async () => {
     setLoading(true);
     setError('');
     try {
-      const res = await paperRevision({ text, feedback, style, urgent });
+      let res;
+      if (scenario === 'advisor') {
+        res = await advisorRevision({ original_text: text, annotations: feedback });
+      } else if (scenario === 'reviewer') {
+        res = await reviewerRevision({ original_text: text, reviewer_comments: feedback });
+      } else {
+        res = await paperRevision({ text, feedback, style, urgent });
+      }
       setResult(res.data);
       setStep('result');
       getProfile().then(r => setCredits(r.data.credits));
     } catch (e: any) {
       setError(e.response?.data?.detail || '请求失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /** 导师场景：直接上传带批注 PDF（跳过估算，与后端 upload 端点对应用完即出结果） */
+  const handleAdvisorPdf = async (file: File) => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await uploadAdvisorPDF(file);
+      setResult(res.data);
+      setStep('result');
+      getProfile().then(r => setCredits(r.data.credits));
+    } catch (e: any) {
+      setError(e.response?.data?.detail || 'PDF 处理失败');
     } finally {
       setLoading(false);
     }
@@ -273,15 +330,32 @@ export default function RevisionPage() {
           </div>
 
           <div className="p-6 space-y-5">
-            {/* 反馈意见输入 */}
+            {/* 反馈意见输入（随场景变化） */}
             <div>
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-800 mb-2">
-                <MessageSquare size={15} className="text-gray-400" />
-                粘贴反馈意见 <span className="text-red-500">*</span>
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                  <MessageSquare size={15} className="text-gray-400" />
+                  {scenario === 'advisor'
+                    ? <>粘贴导师批注 <span className="text-red-500">*</span></>
+                    : scenario === 'reviewer'
+                      ? <>粘贴审稿人意见 <span className="text-red-500">*</span></>
+                      : <>粘贴反馈意见 <span className="text-red-500">*</span></>}
+                </label>
+                {scenario === 'advisor' ? (
+                  <AdvisorPdfUploadButton loading={loading} onFile={handleAdvisorPdf} />
+                ) : (
+                  <FileImportButton onText={setText} hint=".doc 请另存为 .docx；PDF 需为可选中文本" />
+                )}
+              </div>
               <textarea
                 className="w-full h-28 border border-gray-200 rounded-xl p-3.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow resize-y placeholder:text-gray-300"
-                placeholder={`导师说"这段逻辑不够清晰"、"实验部分需要完善"——把导师的原话或审稿人的修改意见贴在这里...`}
+                placeholder={
+                  scenario === 'advisor'
+                    ? `导师说"这段逻辑不够清晰"、"实验部分需要完善"——把导师的原话或批注贴在这里...`
+                    : scenario === 'reviewer'
+                      ? `粘贴审稿人发给你的评审意见（含评分和具体建议）...`
+                      : `导师或审稿人的反馈意见贴在这里...`
+                }
                 value={feedback}
                 onChange={(e) => setFeedback(e.target.value)}
               />
@@ -315,7 +389,8 @@ export default function RevisionPage() {
               </div>
             </div>
 
-            {/* 修改风格选择 */}
+            {/* 修改风格选择（自我修改场景才有） */}
+            {scenario === 'self' && (
             <div className="bg-gray-50 rounded-xl p-4">
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-800 mb-3">
                 <RefreshCw size={15} className="text-gray-400" />
@@ -340,8 +415,10 @@ export default function RevisionPage() {
                 ))}
               </div>
             </div>
+            )}
 
-            {/* 加急处理 */}
+            {/* 加急处理（自我修改场景才有） */}
+            {scenario === 'self' && (
             <div>
               <label className="flex items-center gap-2.5 px-4 py-2.5 bg-white border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
                 <input
@@ -356,6 +433,7 @@ export default function RevisionPage() {
                 </div>
               </label>
             </div>
+            )}
 
             {/* 提示横幅 */}
             <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4 border border-indigo-100">
@@ -404,10 +482,12 @@ export default function RevisionPage() {
                 <span>论文原文</span>
                 <span className="font-medium">{text.length} 字</span>
               </div>
+              {scenario === 'self' && (
               <div className="flex items-center justify-between text-emerald-800">
                 <span>修改风格</span>
                 <span className="font-medium">{revisionStyles.find(s => s.id === style)?.label}</span>
               </div>
+              )}
               <div className="flex items-center justify-between text-emerald-800">
                 <span>修改场景</span>
                 <span className="font-medium">{scenarioTags.find(s => s.id === scenario)?.label}</span>
@@ -488,10 +568,12 @@ export default function RevisionPage() {
               </div>
             )}
             {/* 风格标签 */}
+            {scenario === 'self' && (
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-xs font-medium text-indigo-700">
               <RefreshCw size={13} />
               {revisionStyles.find(s => s.id === style)?.label}
             </div>
+            )}
             {/* 字数变化 */}
             {result.comparison && (
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-50 border border-gray-200 text-xs text-gray-500">

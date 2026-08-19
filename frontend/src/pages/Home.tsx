@@ -47,7 +47,8 @@ const roleEntries = [
     subtitle: '导入含批注的PDF或粘贴意见',
     desc: '导师在论文上写了批注？导入PDF自动解析批注，逐条生成修改方案和对比文档。',
     gradient: 'from-violet-500 to-purple-600',
-    path: '/advisor-revision',
+    path: '/revision',
+    scenario: 'advisor',
     tags: ['PDF导入', '批注解析', '逐条修改'],
   },
   {
@@ -56,7 +57,8 @@ const roleEntries = [
     subtitle: '逐条回复 + Response Letter',
     desc: '收到审稿人评审意见？逐条生成回复、修改论文、输出 Response Letter 和修改对照表。',
     gradient: 'from-orange-500 to-red-500',
-    path: '/reviewer-revision',
+    path: '/revision',
+    scenario: 'reviewer',
     tags: ['审稿回复', 'Response Letter', '对照表'],
   },
 ];
@@ -170,6 +172,7 @@ export default function Home() {
               <Link
                 key={r.path}
                 to={token ? r.path : '/register'}
+                state={token ? { scenario: r.scenario } : undefined}
                 className="card-hover group relative overflow-hidden rounded-2xl border bg-card p-6"
               >
                 <div className={`absolute -top-6 -right-6 w-28 h-28 rounded-full bg-gradient-to-br ${r.gradient} opacity-10 blur-xl`} />
