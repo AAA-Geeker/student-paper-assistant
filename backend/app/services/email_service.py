@@ -65,8 +65,10 @@ def _send_via_smtp(to_email: str, code: str) -> None:
 
     msg = MIMEText(body, "plain", "utf-8")
     msg["Subject"] = Header(subject, "utf-8")
-    msg["From"] = Header(sender, "utf-8")
-    msg["To"] = Header(to_email, "utf-8")
+    # From/To 必须为 RFC5322 规范的纯地址字符串，不能再用 Header() 编码——
+    # QQ/163 邮箱 SMTP 会校验 From 头，MIME 编码后的地址会被判为无效并 550 拒绝。
+    msg["From"] = sender
+    msg["To"] = to_email
 
     server = smtplib.SMTP_SSL(settings.EMAIL_SMTP_HOST, settings.EMAIL_SMTP_PORT, timeout=15)
     try:
