@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, ArrowLeft, Loader2, AlertCircle, Info, Coins, FileEdit, ChevronRight, ScrollText, CornerDownRight } from 'lucide-react';
+import { ShieldCheck, ArrowLeft, Loader2, AlertCircle, Info, Coins, FileEdit, ChevronRight, ScrollText, CornerDownRight, Award, ClipboardList } from 'lucide-react';
 import ExportButtons from '../components/ExportButtons';
 import WorkflowSteps from '../components/WorkflowSteps';
 import FileImportButton from '../components/FileImportButton';
@@ -62,6 +62,74 @@ function getRecommendation(overall?: string): { label: string; color: string } |
   return null;
 }
 
+// ─── 需求10：分平台审稿单样式模拟 ───
+// 平台类别：conference(ACL/EMNLP) / sci(SCI期刊) / core(国内核心)，各自拟真审稿单布局
+type PlatformId = 'conference' | 'sci' | 'core';
+type SectionKey = 'overall' | 'issues' | 'strengths' | 'suggestions';
+
+interface PlatformTemplate {
+  id: PlatformId;
+  label: string;
+  short: string;
+  // 审稿单头部说明（模拟投稿表单）
+  headerNote: string;
+  accent: string;          // 审稿单顶部渐变
+  badge: string;           // 类别徽章
+  // 平台特有审稿单各部分的顺序与标题
+  sections: { key: SectionKey; title: string; icon: string }[];
+}
+
+const platformTemplates: Record<PlatformId, PlatformTemplate> = {
+  conference: {
+    id: 'conference',
+    label: 'ACL / EMNLP 审稿单',
+    short: 'ACL审稿单',
+    headerNote: 'OpenReview 风格审稿单 · Reviewer 匿名评审',
+    accent: 'from-indigo-600 to-violet-700',
+    badge: 'bg-indigo-600 text-white',
+    sections: [
+      { key: 'overall', title: 'Summary & Overall Assessment', icon: '📋' },
+      { key: 'issues', title: 'Weaknesses / Main Concerns', icon: '⚠️' },
+      { key: 'strengths', title: 'Strengths', icon: '✅' },
+      { key: 'suggestions', title: 'Suggestions for Revision', icon: '📝' },
+    ],
+  },
+  sci: {
+    id: 'sci',
+    label: 'SCI 期刊审稿单',
+    short: 'SCI审稿单',
+    headerNote: 'Editorial Manager · Section Editor 评价',
+    accent: 'from-emerald-600 to-teal-700',
+    badge: 'bg-emerald-600 text-white',
+    sections: [
+      { key: 'overall', title: 'Recommendation & Overall Assessment', icon: '🏅' },
+      { key: 'issues', title: 'Major & Minor Comments', icon: '🔍' },
+      { key: 'suggestions', title: 'Specific Suggestions to Authors', icon: '📖' },
+      { key: 'strengths', title: 'Strengths', icon: '👍' },
+    ],
+  },
+  core: {
+    id: 'core',
+    label: '国内核心期刊审稿单',
+    short: '国内审稿单',
+    headerNote: '编辑部审稿意见表 · 专家评审',
+    accent: 'from-amber-500 to-orange-600',
+    badge: 'bg-amber-500 text-white',
+    sections: [
+      { key: 'overall', title: '综合评价（选题·方法·语言）', icon: '📌' },
+      { key: 'issues', title: '主要问题与修改意见', icon: '📢' },
+      { key: 'suggestions', title: '具体修改建议', icon: '🖊️' },
+      { key: 'strengths', title: '值得肯定之处', icon: '✒️' },
+    ],
+  },
+};
+
+function getPlatformId(venue: string): PlatformId {
+  if (['ACL', 'CVPR'].includes(venue)) return 'conference';
+  if (['SCI-1', 'SCI-2'].includes(venue)) return 'sci';
+  return 'core';
+}
+
 export default function ReviewPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -71,6 +139,8 @@ export default function ReviewPage() {
   const [result, setResult] = useState<WorkflowResponse | null>(null);
   const [error, setError] = useState('');
   const [credits, setCredits] = useState<number | null>(null);
+  // 需求10：审稿单视图样式（默认跟随所选平台，可切换预览其他平台样式）
+  const [viewMode, setViewMode] = useState<PlatformId | 'platform'>(() => getPlatformId(venue));
 
   useEffect(() => {
     getProfile().then(r => setCredits(r.data.credits)).catch(() => {});
@@ -97,6 +167,59 @@ export default function ReviewPage() {
     navigate('/revision', {
       state: { feedback: issueText, originalText: text, scenario: 'reviewer' }
     });
+  };
+
+  // 需求10：当前审稿单模板（跟随平台或手动指定）+ 分类/推荐视觉
+  const activePlatform: PlatformId = viewMode === 'platform' ? getPlatformId(venue) : viewMode;
+  const tmpl = platformTemplates[activePlatform];
+  const rec = result ? getRecommendation(result.overall) : null;
+
+  const renderSection = (key: SectionKey) => {
+    if (!result) return null;
+    if (key === 'issues') {
+      if (!result.major_issues || result.major_issues.length === 0) return null;
+      return (
+        <div className="space-y-2">
+          {result.major_issues.map((issue, i) => {
+            const s = sevStyles[issue.severity] || sevStyles.minor;
+            return (
+              <div key={i} className={`rounded-xl border ${s.color} overflow-hidden`}>
+                <div className="flex items-start gap-3 p-3.5">
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold text-white shrink-0 ${s.badge}`}>
+                    {s.label}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{issue.text}</p>
+                  </div>
+                  <button
+                    onClick={() => goModifyIssue(issue.text)}
+                    className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 bg-white text-indigo-600 rounded-lg text-xs font-medium border border-indigo-200 hover:bg-indigo-50 transition-all shadow-sm"
+                  >
+                    <CornerDownRight size={13} />
+                    针对此条修改
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+    if (key === 'overall') {
+      if (!result.overall) return null;
+      return (
+        <div className="whitespace-pre-wrap text-sm text-gray-800 leading-relaxed">{result.overall}</div>
+      );
+    }
+    if (key === 'strengths') {
+      if (!result.strengths) return null;
+      return <div className="whitespace-pre-wrap text-sm text-gray-800 leading-relaxed">{result.strengths}</div>;
+    }
+    if (key === 'suggestions') {
+      if (!result.suggestions) return null;
+      return <div className="whitespace-pre-wrap text-sm text-emerald-800 leading-relaxed">{result.suggestions}</div>;
+    }
+    return null;
   };
 
   const scene = getSceneTag(venue);
@@ -263,73 +386,84 @@ export default function ReviewPage() {
               </div>
             </div>
 
-            {/* 结构化审稿报告（一眼可见 + 逐条联动修改） */}
+            {/* 需求10：分平台审稿单样式模拟 + 分部分展示 */}
             {result.major_issues && result.major_issues.length > 0 ? (
-              <div className="space-y-5">
-                {/* 总体评价 + 推荐意见 */}
-                {result.overall && (
-                  <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                    <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
-                      {getRecommendation(result.overall) ? (
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold border ${getRecommendation(result.overall)!.color}`}>
-                          {getRecommendation(result.overall)!.label}
-                        </span>
-                      ) : <ShieldCheck size={14} className="text-gray-400" />}
-                      <span className="text-sm font-medium text-gray-600">总体评价</span>
-                    </div>
-                    <div className="p-4 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{result.overall}</div>
+              <div className="space-y-4">
+                {/* 审稿单样式切换（默认跟随平台，可预览其他平台模板） */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1 text-xs text-gray-500">
+                    <ClipboardList size={13} className="text-gray-400" />
+                    审稿单样式
+                  </span>
+                  <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+                    {(['platform', 'conference', 'sci', 'core'] as const).map(m => (
+                      <button
+                        key={m}
+                        onClick={() => setViewMode(m)}
+                        className={`px-3 py-1.5 text-xs font-medium border-r last:border-r-0 transition-all ${
+                          viewMode === m
+                            ? 'bg-indigo-600 text-white'
+                            : m === 'platform'
+                              ? 'bg-white text-gray-600 hover:bg-gray-50'
+                              : 'bg-white text-gray-500 hover:bg-gray-50'
+                        }`}
+                      >
+                        {m === 'platform' ? `跟随平台（${platformTemplates[getPlatformId(venue)].short}）` : platformTemplates[m].short}
+                      </button>
+                    ))}
                   </div>
-                )}
+                </div>
 
-                {/* 主要问题：按严重度彩色高亮 + 可逐条带去修改 */}
-                {result.major_issues.length > 0 && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <AlertCircle size={15} className="text-red-500" />
-                      <h4 className="font-semibold text-gray-800 text-sm">主要问题（{result.major_issues.length}）</h4>
+                {/* 拟真审稿单卡片 */}
+                <div className="rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                  {/* 审稿单头：模拟投稿表单信息条 */}
+                  <div className={`bg-gradient-to-r ${tmpl.accent} text-white px-5 py-4`}>
+                    <div className="flex items-start justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-2 bg-white/20 rounded-lg">
+                          <Award size={18} />
+                        </div>
+                        <div>
+                          <div className="font-bold text-sm leading-tight">{tmpl.label}</div>
+                          <div className="text-[11px] text-white/80 mt-0.5">{tmpl.headerNote}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {rec && (
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${tmpl.badge}`}>
+                            {rec.label}
+                          </span>
+                        )}
+                        {scene && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-white/15 text-white">
+                            <span className="text-sm leading-none">{scene.icon}</span>{scene.label}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      {result.major_issues.map((issue, i) => {
-                        const s = sevStyles[issue.severity] || sevStyles.minor;
-                        return (
-                          <div key={i} className={`rounded-xl border ${s.color} overflow-hidden`}>
-                            <div className="flex items-start gap-3 p-3.5">
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold text-white shrink-0 ${s.badge}`}>
-                                {s.label}
-                              </span>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{issue.text}</p>
-                              </div>
-                              <button
-                                onClick={() => goModifyIssue(issue.text)}
-                                className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 bg-white text-indigo-600 rounded-lg text-xs font-medium border border-indigo-200 hover:bg-indigo-50 transition-all shadow-sm"
-                              >
-                                <CornerDownRight size={13} />
-                                针对此条修改
-                              </button>
-                            </div>
+                  </div>
+
+                  {/* 分部分展示：按平台模板定义的部分顺序 */}
+                  <div className="divide-y divide-gray-100">
+                    {tmpl.sections.map(sec => {
+                      const content = renderSection(sec.key);
+                      if (!content && sec.key !== 'issues') return null;
+                      if (sec.key === 'issues' && (!result.major_issues || result.major_issues.length === 0)) return null;
+                      return (
+                        <div key={sec.key} className="px-5 py-4">
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="text-base leading-none">{sec.icon}</span>
+                            <h4 className="font-semibold text-gray-800 text-sm">{sec.title}</h4>
+                            {sec.key === 'issues' && result.major_issues && (
+                              <span className="text-[11px] text-gray-400">（{result.major_issues.length} 条）</span>
+                            )}
                           </div>
-                        );
-                      })}
-                    </div>
+                          {renderSection(sec.key)}
+                        </div>
+                      );
+                    })}
                   </div>
-                )}
-
-                {/* 优点 */}
-                {result.strengths && (
-                  <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                    <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 text-sm font-medium text-gray-600">优点</div>
-                    <div className="p-4 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{result.strengths}</div>
-                  </div>
-                )}
-
-                {/* 修改建议 */}
-                {result.suggestions && (
-                  <div className="bg-gradient-to-br from-emerald-50/70 to-white rounded-xl border border-emerald-100 overflow-hidden">
-                    <div className="px-4 py-3 border-b border-emerald-100 text-sm font-medium text-emerald-700">对作者的修改建议</div>
-                    <div className="p-4 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{result.suggestions}</div>
-                  </div>
-                )}
+                </div>
               </div>
             ) : (
               /* 无结构化数据时回退：平铺完整报告 */
