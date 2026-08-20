@@ -20,7 +20,17 @@ from typing import Dict, Tuple, Optional, List
 from sqlalchemy.orm import Session
 
 from app.models.user import User
-from app.services.ai import call_llm_with_config, de_ai_rewrite, de_ai_task, de_ai_review, parse_review_output
+from app.services.ai import (
+    call_llm_with_config,
+    de_ai_rewrite,
+    de_ai_task,
+    de_ai_review,
+    parse_review_output,
+    parse_format_output,
+    FMT_PASS_MARK,
+    FMT_ISSUE_MARK,
+    FMT_GRADE_MARK,
+)
 from app.services.credits import (
     calculate_core_cost,
     has_free_core_today,
@@ -400,28 +410,36 @@ async def defense_simulation(paper_text: str, user: User, db: Session, model: st
     return await deduct_and_run(db, user, "aigc_rewrite", len(paper_text), False, runner)
 
 
-# ─── 6. 投稿格式预检 ─────────────────────────────────────────────
+# ─── 6. 投稿格式预检（需求9：格式 / 内容 / 版本 / 字体字号 四维规范审查） ────
 
 async def format_check(paper_text: str, venue: str, user: User, db: Session, model: str = "deepseek") -> Dict:
     async def runner() -> Dict:
-        prompt = f"""请检查以下论文内容是否符合 {venue} 的格式要求。
-
-论文内容：
-{paper_text}
-
-请按以下维度输出检查报告：
-
-## 格式检查报告
-
-### 1. 结构完整性
-### 2. 引用格式
-### 3. 图表与公式
-### 4. 语言与排版
-### 5. 问题清单"""
+        # 用【】标记三节 + 严重度前缀 + 四维标注，前端据此做可视化 checklist
+        instruction = (
+            f"请以 {venue}（投稿规范）视角，对论文做规范/排版审查，覆盖四个维度：格式、内容、版本、字体字号。"
+            "严格按下面三个用【】括起的小标题分节输出，标题文字与顺序必须与下面完全一致：\n"
+            f"{FMT_PASS_MARK}\n"
+            "（列出已经符合规范的检查项，一条一行，不用符号前缀）\n"
+            f"{FMT_ISSUE_MARK}\n"
+            "（列出违反规范的问题项，每条单独一行，行首必须以 Critical：/Major：/Minor：开头，"
+            "并在行内最前面标注所属维度，写法为：格式｜、内容｜、版本｜或字体字号｜，" 
+            "然后写具体位置、问题、建议修改）\n"
+            f"{FMT_GRADE_MARK}\n"
+            "（给出总体就绪度百分比（只写数字，如 86%）和一句结论）\n"
+            "不要输出这三节之外的任何内容，不要使用编号、markdown 符号或表格。"
+            f"\n\n论文内容：\n{paper_text}"
+        )
         result = await call_llm_with_config(model, [
-            {"role": "user", "content": prompt},
+            {"role": "user", "content": instruction},
         ])
-        return {"type": "format_check", "venue": venue, "original_length": len(paper_text), "result": result}
+        parsed = parse_format_output(result)
+        return {
+            "type": "format_check",
+            "venue": venue,
+            "original_length": len(paper_text),
+            "result": result,
+            **parsed,  # passed_items / grade / issues / issues_multiline
+        }
 
     return await deduct_and_run(db, user, "aigc_rewrite", len(paper_text), False, runner)
 

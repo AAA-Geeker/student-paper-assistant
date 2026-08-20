@@ -457,6 +457,76 @@ def parse_review_output(out: str) -> Dict:
     }
 
 
+# ─── 格式/规范审查（需求9：格式 / 内容 / 版本 / 字体字号）──
+FMT_PASS_MARK = "【通过项】"
+FMT_ISSUE_MARK = "【问题项】"
+FMT_GRADE_MARK = "【总体评级】"
+# 规范审查的四类维度（每条问题须用其一标注）
+FMT_DIMS = ("格式", "内容", "版本", "字体字号")
+
+
+def parse_format_output(out: str) -> Dict:
+    """把格式/规范审查报告拆成 {passed_items, issues, grade, issues_multiline}。
+
+    - 【通过项】/【问题项】/【总体评级】按【】标记切出（容错：缺段回落到空）。
+    - issues: [{severity, dimension, text}]，从「问题项」逐行解析：
+      行首 Critical：/Major：/Minor：定严重度；行内以 "维度｜" 或 "维度：" 前缀标注所属维度，
+      未标注时按包含的维度关键词推断，推断不到归为"格式"。
+    """
+    def _slice(mark: str, end_mark: str) -> str:
+        si = out.find(mark)
+        if si < 0:
+            return ""
+        si += len(mark)
+        ei = out.find(end_mark, si) if end_mark else -1
+        return out[si:ei].strip() if ei > si else out[si:].strip()
+
+    passed_text = _slice(FMT_PASS_MARK, FMT_ISSUE_MARK)
+    issues_text = _slice(FMT_ISSUE_MARK, FMT_GRADE_MARK)
+    grade = _slice(FMT_GRADE_MARK, "")
+
+    passed_items: List[str] = []
+    for ln in passed_text.splitlines():
+        ln = ln.strip()
+        if ln:
+            passed_items.append(ln)
+
+    issues: List[Dict] = []
+    for line in issues_text.splitlines():
+        ln = line.strip()
+        if not ln:
+            continue
+        sev = "minor"
+        for prefix in SEV_PREFIXES:
+            if ln.startswith(prefix):
+                sev = _SEV_KEYS[prefix.lower().rstrip("：")]
+                ln = ln[len(prefix):].strip()
+                break
+        # 解析所属维度：优先 "维度｜"，其次 "维度:"，否则按关键词推断
+        dim = None
+        for d in FMT_DIMS:
+            if ln.startswith(d + "｜") or ln.startswith(d + "|") or ln.startswith(d + "："):
+                dim = d
+                ln = ln[len(d) + 1:].strip()
+                break
+        if not dim:
+            for d in FMT_DIMS:
+                if d in ln[:8]:
+                    dim = d
+                    break
+        if not dim:
+            dim = "格式"
+        if ln:
+            issues.append({"severity": sev, "dimension": dim, "text": ln})
+
+    return {
+        "passed_items": passed_items,
+        "issues_multiline": issues_text,
+        "grade": grade,
+        "issues": issues,
+    }
+
+
 SYSTEM_PROMPT_REV = (
     "你是一位资深、挑剔、经验丰富的学术会议/期刊审稿人，正在撰写一篇投稿的审稿报告。\n"
     "硬性要求：\n"

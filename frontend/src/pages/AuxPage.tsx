@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, AlertCircle, Coins } from 'lucide-react';
+import { ArrowLeft, Loader2, AlertCircle, Coins, CheckCircle2 } from 'lucide-react';
 import ExportButtons from '../components/ExportButtons';
-import { getProfile } from '../api/core';
+import { getProfile, type FormatCheckResult } from '../api/core';
 
 interface AuxPageConfig {
   title: string;
@@ -36,13 +36,13 @@ const CONFIGS: Record<string, AuxPageConfig> = {
   },
   'format-check': {
     title: '投稿格式预检',
-    subtitle: '按期刊模板规范化格式（IEEE / ACL / CSSCI）',
+    subtitle: '格式 / 内容 / 版本 / 字体字号 四维规范审查',
     icon: '📐',
     color: 'from-blue-600 to-cyan-600',
     placeholder: '粘贴论文全文...',
     apiFn: (d: any) => import('../api/core').then(m => m.formatCheck(d)),
     buildPayload: (inputs, model) => ({ text: inputs.text, venue: inputs.venue || 'ACL', model }),
-    hints: ['检查结构完整性、引用格式、图表编号', '支持 ACL/IEEE/SCI/CSSCI 等格式标准'],
+    hints: ['覆盖四维：格式（结构/引用/图表编号）、内容（完整性/逻辑）、版本（术语统一/编号连续性）、字体字号（排版规范）', '支持 ACL/IEEE/SCI/CSSCI 等格式标准', '结果按严重度分级 + 维度筛选，一眼可见'],
   },
   'revision-review': {
     title: '改后复查',
@@ -77,6 +77,21 @@ const CONFIGS: Record<string, AuxPageConfig> = {
   },
 };
 
+// 格式/规范审查：严重度 + 四维配色（需求9 可视化 checklist）
+const fmtSev: Record<string, { badge: string; text: string }> = {
+  critical: { badge: 'bg-red-600 text-white', text: 'text-red-700' },
+  major: { badge: 'bg-amber-500 text-white', text: 'text-amber-700' },
+  minor: { badge: 'bg-yellow-500 text-white', text: 'text-yellow-700' },
+};
+const fmtSevLabel: Record<string, string> = { critical: 'Critical', major: 'Major', minor: 'Minor' };
+const fmtDims = ['全部', '格式', '内容', '版本', '字体字号'] as const;
+const fmtDimColor: Record<string, string> = {
+  '格式': 'bg-blue-50 text-blue-700 border-blue-200',
+  '内容': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  '版本': 'bg-purple-50 text-purple-700 border-purple-200',
+  '字体字号': 'bg-cyan-50 text-cyan-700 border-cyan-200',
+};
+
 export default function AuxPage({ configKey }: { configKey: string }) {
   const navigate = useNavigate();
   const cfg = CONFIGS[configKey];
@@ -85,6 +100,8 @@ export default function AuxPage({ configKey }: { configKey: string }) {
   const [model, setModel] = useState('deepseek');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState('');
+  const [fmtResult, setFmtResult] = useState<FormatCheckResult | null>(null);
+  const [fmtDim, setFmtDim] = useState<string>('全部');
   const [error, setError] = useState('');
   const [credits, setCredits] = useState<number | null>(null);
   const [estimate, setEstimate] = useState<{ points: number } | null>(null);
@@ -108,6 +125,10 @@ export default function AuxPage({ configKey }: { configKey: string }) {
       const payload = cfg.buildPayload(inputs, model);
       const res = await cfg.apiFn(payload);
       setResult(res.data.result);
+      if (configKey === 'format-check') {
+        setFmtResult(res.data as FormatCheckResult);
+        setFmtDim('全部');
+      }
       setStep(3);
       getProfile().then(r => setCredits(r.data.credits));
     } catch (e: any) {
@@ -288,17 +309,91 @@ export default function AuxPage({ configKey }: { configKey: string }) {
         {step === 3 && result && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-foreground">生成结果</h3>
+              <h3 className="font-bold text-foreground">{configKey === 'format-check' ? '规范审查结果' : '生成结果'}</h3>
               <div className="flex items-center gap-2">
                 <ExportButtons content={result} title={cfg.title} />
-                <button onClick={() => { setStep(1); setResult(''); }} className="text-sm text-primary hover:underline">
+                <button onClick={() => { setStep(1); setResult(''); setFmtResult(null); }} className="text-sm text-primary hover:underline">
                   继续使用
                 </button>
               </div>
             </div>
-            <div className="prose prose-sm max-w-none bg-gray-50 p-4 rounded-lg border border-border">
-              <pre className="whitespace-pre-wrap font-sans text-sm text-foreground">{result}</pre>
-            </div>
+
+            {/* 需求9：格式/规范审查 → 结构化 checklist（四维筛选 + 严重度高亮） */}
+            {configKey === 'format-check' && fmtResult && fmtResult.issues && fmtResult.issues.length > 0 ? (
+              <div className="space-y-5">
+                {/* 总体就绪度 + 维度筛选 */}
+                <div className="rounded-xl border border-border p-4 bg-gradient-to-r from-blue-50/70 to-cyan-50/50">
+                  <div className="flex items-center flex-wrap gap-3">
+                    {fmtResult.grade && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl font-bold text-blue-700">{fmtResult.grade.match(/\d+%/)?.[0] || fmtResult.grade}</span>
+                        <span className="text-xs text-muted-foreground">总体就绪度</span>
+                      </div>
+                    )}
+                    <div className="ml-auto flex flex-wrap gap-1.5">
+                      {fmtDims.map(d => (
+                        <button
+                          key={d}
+                          onClick={() => setFmtDim(d)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all ${
+                            fmtDim === d ? 'bg-blue-600 text-white border-blue-600' : 'bg-white border-border text-muted-foreground hover:bg-gray-50'
+                          }`}
+                        >
+                          {d}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {fmtResult.grade && <p className="text-xs text-muted-foreground mt-2">{fmtResult.grade.replace(/\d+%/, '')}</p>}
+                </div>
+
+                {/* 问题项：按严重度彩色高亮 + 维度徽章 */}
+                <div>
+                  <h4 className="font-semibold text-foreground text-sm mb-2">待修正问题</h4>
+                  <div className="space-y-2">
+                    {fmtResult.issues
+                      .filter(i => fmtDim === '全部' || i.dimension === fmtDim)
+                      .map((issue, i) => {
+                        const s = fmtSev[issue.severity] || fmtSev.minor;
+                        return (
+                          <div key={i} className="rounded-xl border border-border bg-white p-3 flex items-start gap-3">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold shrink-0 ${s.badge}`}>
+                              {fmtSevLabel[issue.severity] || 'Minor'}
+                            </span>
+                            <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-medium border ${fmtDimColor[issue.dimension] || fmtDimColor['格式']}`}>
+                              {issue.dimension}
+                            </span>
+                            <p className={`text-sm leading-relaxed whitespace-pre-wrap ${s.text}`}>{issue.text}</p>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+
+                {/* 通过项 */}
+                {fmtResult.passed_items && fmtResult.passed_items.length > 0 && (
+                  <div>
+                    <h4 className="font-semibold text-foreground text-sm mb-2 flex items-center gap-1.5">
+                      <CheckCircle2 size={15} className="text-emerald-500" />
+                      已达标（{fmtResult.passed_items.length}）
+                    </h4>
+                    <ul className="bg-emerald-50/50 border border-emerald-100 rounded-xl divide-y divide-emerald-100/70">
+                      {fmtResult.passed_items.map((item, i) => (
+                        <li key={i} className="flex items-start gap-2 px-3.5 py-2.5 text-sm text-emerald-800">
+                          <CheckCircle2 size={14} className="text-emerald-500 shrink-0 mt-0.5" />
+                          <span className="whitespace-pre-wrap">{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* 其余辅助功能 / 无结构化数据时：平铺结果 */
+              <div className="prose prose-sm max-w-none bg-gray-50 p-4 rounded-lg border border-border">
+                <pre className="whitespace-pre-wrap font-sans text-sm text-foreground">{result}</pre>
+              </div>
+            )}
           </div>
         )}
       </div>

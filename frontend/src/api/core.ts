@@ -226,11 +226,27 @@ export const getSubscriptionPlans = () => client.get<{ plans: SubscriptionPlan[]
 export const subscribe = (plan: string) => client.post('/me/subscribe', { plan });
 
 // 辅助功能
+// 格式/规范审查结果（需求9）
+export interface FormatCheckIssue {
+  severity: 'critical' | 'major' | 'minor';
+  dimension: '格式' | '内容' | '版本' | '字体字号';
+  text: string;
+}
+export interface FormatCheckResult {
+  type: string;
+  venue: string;
+  original_length: number;
+  result: string;
+  passed_items?: string[];
+  grade?: string;
+  issues?: FormatCheckIssue[];
+}
+
 export const defenseSimulation = (data: { text: string; model?: string }) =>
   client.post<{ type: string; original_length: number; result: string }>('/core/defense-simulation', data);
 
 export const formatCheck = (data: { text: string; venue?: string; model?: string }) =>
-  client.post<{ type: string; venue: string; original_length: number; result: string }>('/core/format-check', data);
+  client.post<FormatCheckResult>('/core/format-check', data);
 
 export const revisionReview = (data: { original_text: string; revised_text: string; feedback: string; model?: string }) =>
   client.post<{ type: string; original_length: number; revised_length: number; result: string }>('/core/revision-review', data);
