@@ -95,6 +95,10 @@ export interface WorkflowResponse {
   venue?: string;
   style?: string;
   original_length?: number;
+  // 审稿人修改（reviewer_revision）结构化结果
+  response_letter?: string;
+  revised_paper?: string;
+  compare_items?: string[];
 }
 
 export const estimateAigcRewrite = (data: Omit<AigcRewriteRequest, 'urgent'>) =>

@@ -15,6 +15,7 @@
 - result: 最终文本（向下兼容）
 """
 
+import re
 from typing import Dict, Tuple, Optional, List
 from sqlalchemy.orm import Session
 
@@ -278,6 +279,42 @@ async def advisor_annotation_revision(
 
 # ─── 5. 审稿人修改（Response Letter + 修改） ────────────────────────
 
+# 审稿结果三段结构标记（纯文字小标题，前端据此拆出 Response Letter / 修改对照）
+R_LETTER_MARK = "【逐条回复】"
+R_PAPER_MARK = "【修改后的论文全文】"
+R_COMPARE_MARK = "【修改对照】"
+
+
+def _parse_reviewer_output(out: str) -> Tuple[str, str, List[str]]:
+    """把审稿人修改结果拆成 {response_letter, revised_paper, compare_items}。
+
+    模型按指令用三段纯文字小标题输出；本函数按标记切段，并对标记缺失做容错
+    （某段缺失时回落到整段输出，保证前端仍能完整展示）。
+    """
+    def _slice(start_mark: str, end_mark: str) -> str:
+        si = out.find(start_mark)
+        if si < 0:
+            return ""
+        si += len(start_mark)
+        ei = out.find(end_mark, si) if end_mark else -1
+        return out[si:ei].strip() if ei > si else out[si:].strip()
+
+    response_letter = _slice(R_LETTER_MARK, R_PAPER_MARK)
+    revised_paper = _slice(R_PAPER_MARK, R_COMPARE_MARK)
+    compare_block = _slice(R_COMPARE_MARK, "")
+
+    compare_items: List[str] = [
+        ln.strip() for ln in compare_block.splitlines() if ln.strip()
+    ]
+
+    # 容错：某段没按标记切出来时，用整段输出兜底，保证前端仍能完整展示
+    if not revised_paper:
+        revised_paper = out.strip()
+    if not response_letter:
+        response_letter = out.strip()
+    return response_letter, revised_paper, compare_items
+
+
 async def reviewer_response_revision(
     original_text: str,
     reviewer_comments: str,
@@ -289,23 +326,40 @@ async def reviewer_response_revision(
     审稿人修改功能：逐条回复审稿意见 + 修改论文。
     - original_text: 论文原文
     - reviewer_comments: 审稿人评审意见
+    返回结构化字段：revised_text=修改后论文、response_letter、revised_paper、compare_items。
     """
     async def runner() -> Dict:
         # ── 去 AI 痕迹审稿回复与修改（生产可用）：非 AI 问答式 ──
         # 注：Dify 工作流因运行时变量解析 bug 暂不可用，改走此直连实现。
+        # 用三个【】括起的纯文字小标题分段，前端据此拆 Response Letter / 修改对照。
         instruction = (
-            "请针对每条审稿意见生成回复和对应修改。请分四段书写：第一段「逐条回复」，每条含审稿意见引用、"
-            "你的回复（说明修改方式与位置）、修改后内容（如适用）；第二段「修改后的论文全文」，把"
-            "审稿意见对应的修改应用到论文；第三段「修改对照」，逐条列出修改位置、原文与改后内容。"
-            "段落标题用普通文字，不要使用任何符号、编号或表格。"
+            "请针对每条审稿意见生成回复和对应修改。严格按顺序分三段书写，每段都用一个以【】括起的纯文字小标题开头，"
+            "小标题文字必须与下面给出的完全一致，其他内容不得出现【】符号：\n"
+            f"{R_LETTER_MARK}\n"
+            "（对每条审稿意见写：引用意见要点、你的回复、说明修改的位置与方式）\n"
+            f"{R_PAPER_MARK}\n"
+            "（把审稿意见对应的修改应用到论文后得到的完整论文，未修改部分保持不变）\n"
+            f"{R_COMPARE_MARK}\n"
+            "（逐条列出每一处修改，一条一行，写法为：修改位置——原句；改后句）\n"
+            "不要输出这三大段之外的任何内容，不要使用编号、markdown 符号或表格，"
+            "小标题文字必须与上面完全一致。"
         )
         content = f"审稿人意见：\n{reviewer_comments}\n\n论文原文：\n{original_text}"
         out = await de_ai_task(instruction, content, model=model)
-        return {"type": "reviewer_revision", "result": out}
+        response_letter, revised_paper, compare_items = _parse_reviewer_output(out)
+        return {
+            "type": "reviewer_revision",
+            "result": out,
+            "response_letter": response_letter,
+            "revised_paper": revised_paper,
+            "compare_items": compare_items,
+        }
 
     ok, res = await deduct_and_run(db, user, "paper_revision", len(original_text) + len(reviewer_comments), False, runner)
     if ok and isinstance(res, dict) and "result" in res:
-        return _build_workflow_response("reviewer_revision", original_text, {**res, "revised_text": res.get("result", "")})
+        # revised_text 用「修改后的论文全文」段，使 compute_comparison 得到有意义的对照表
+        revised = (res.get("revised_paper") or res.get("result") or "").strip()
+        return _build_workflow_response("reviewer_revision", original_text, {**res, "revised_text": revised})
     return res
 
 

@@ -220,7 +220,7 @@ export default function ReviewPage() {
                 <button
                   onClick={() => {
                     navigate('/revision', {
-                      state: { feedback: result.result, originalText: text }
+                      state: { feedback: result.result, originalText: text, scenario: 'reviewer' }
                     });
                   }}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-medium hover:bg-emerald-100 border border-emerald-200 transition-all shadow-sm"

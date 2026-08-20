@@ -3,11 +3,12 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
   FileEdit, ArrowLeft, Loader2, AlertCircle, CheckCircle, Info, Coins,
   User, BookOpen, Pencil, MessageSquare, Upload,
-  Copy
+  Copy, ListChecks, FileText, CornerDownRight
 } from 'lucide-react';
 import ExportButtons from '../components/ExportButtons';
 import WorkflowSteps from '../components/WorkflowSteps';
 import FileImportButton from '../components/FileImportButton';
+import ComparisonView from '../components/ComparisonView';
 import { Button } from '../components/ui/button';
 import { paperRevision, advisorRevision, uploadAdvisorPDF, reviewerRevision, getProfile } from '../api/core';
 import type { WorkflowResponse } from '../api/core';
@@ -120,6 +121,8 @@ export default function RevisionPage() {
   const [error, setError] = useState('');
   const [credits, setCredits] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
+  // 审稿场景结果显示标签：'compare' 修改对照（默认首屏） | 'letter' Response Letter
+  const [reviewTab, setReviewTab] = useState<'compare' | 'letter'>('compare');
 
   useEffect(() => {
     getProfile().then(r => setCredits(r.data.credits)).catch(() => {});
@@ -181,6 +184,7 @@ export default function RevisionPage() {
     setResult(null);
     setError('');
     setCopied(false);
+    setReviewTab('compare');
   };
 
   const handleCopy = (content: string) => {
@@ -423,31 +427,144 @@ export default function RevisionPage() {
           {/* 修改结果 */}
           <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
             <div className="p-5">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-semibold text-gray-800">修改后文本</h4>
-                  <button
-                    onClick={() => handleCopy(result.result || result.revised_text)}
-                    className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-all ${
-                      copied
-                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                        : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
-                    }`}
+              {/* 审稿场景：Response Letter / 修改对照 标签页 */}
+              {scenario === 'reviewer' ? (
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="text-sm font-semibold text-gray-800 mr-1">审稿修改产出</h4>
+                    <div className="flex gap-1.5 ml-auto">
+                      <button
+                        onClick={() => setReviewTab('compare')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                          reviewTab === 'compare'
+                            ? 'bg-blue-50 border-blue-300 text-blue-700'
+                            : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                        }`}
+                      >
+                        <ListChecks size={13} />
+                        修改对照
+                        {result.comparison && (
+                          <span className="text-[10px] opacity-70">({result.comparison.stats.modified_segments}处)</span>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => setReviewTab('letter')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                          reviewTab === 'letter'
+                            ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
+                            : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                        }`}
+                      >
+                        <FileText size={13} />
+                        Response Letter
+                      </button>
+                    </div>
+                  </div>
+
+                  {reviewTab === 'compare' ? (
+                    <div className="space-y-4">
+                      {/* 自动逐段对照表（原文 ↔ 修改后论文） */}
+                      {result.comparison ? (
+                        <ComparisonView
+                          comparison={result.comparison}
+                          originalText={result.original_text}
+                          revisedText={result.revised_text || result.revised_paper}
+                        />
+                      ) : (
+                        <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-500">
+                          暂无对照数据，请查看下方文字说明。
+                        </div>
+                      )}
+
+                      {/* 逐条修改说明（后端 compare_items 结构化输出） */}
+                      {result.compare_items && result.compare_items.length > 0 && (
+                        <div className="border border-gray-200 rounded-xl overflow-hidden">
+                          <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
+                            <CornerDownRight size={13} className="text-blue-500" />
+                            <span className="text-sm font-medium text-gray-600">逐条修改说明</span>
+                          </div>
+                          <ul className="divide-y divide-gray-100">
+                            {result.compare_items.map((item, i) => {
+                              // 尝试把「位置——原句；改后句」拆成意群分别着色
+                              const arrowIdx = item.indexOf('——');
+                              const label = arrowIdx > 0 ? item.slice(0, arrowIdx) : null;
+                              const body = arrowIdx > 0 ? item.slice(arrowIdx + 2) : item;
+                              const parts = body.split('；');
+                              return (
+                                <li key={i} className="px-4 py-3 text-sm text-gray-700 leading-relaxed">
+                                  {label && (
+                                    <span className="inline-flex items-center gap-1 mr-2 text-blue-700 bg-blue-50 rounded px-1.5 py-0.5 text-xs font-medium">
+                                      位置：{label}
+                                    </span>
+                                  )}
+                                  <span className="text-gray-500">原句：{parts[0]}</span>
+                                  {parts[1] && (
+                                    <span className="block mt-1 text-emerald-700">
+                                      改后：{parts.slice(1).join('；')}
+                                    </span>
+                                  )}
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* Response Letter：逐条回复审稿意见 */
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-semibold text-gray-800">给审稿人的逐条回复</h4>
+                        <button
+                          onClick={() => handleCopy(result.response_letter || '')}
+                          className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-all ${
+                            copied
+                              ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                              : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                          }`}
+                        >
+                          {copied ? <CheckCircle size={13} /> : <Copy size={13} />}
+                          {copied ? '已复制' : '复制'}
+                        </button>
+                      </div>
+                      <div className="prose prose-sm max-w-none bg-gradient-to-br from-indigo-50/60 to-white p-5 rounded-xl border border-indigo-100 whitespace-pre-wrap text-sm text-gray-800 leading-relaxed">
+                        {(result.response_letter || result.original_text || '未生成逐条回复，请查看完整结果。').split('\n').map((line, i) => (
+                          <p key={i} className={line.trim() === '' ? 'h-3' : 'mb-2'}>
+                            {line || '\u00A0'}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* 导师 / 自我场景：保持原有平铺展示修改后文本 */
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-semibold text-gray-800">修改后文本</h4>
+                    <button
+                      onClick={() => handleCopy(result.result || result.revised_text)}
+                      className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-all ${
+                        copied
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                          : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                      }`}
+                    >
+                      {copied ? <CheckCircle size={13} /> : <Copy size={13} />}
+                      {copied ? '已复制' : '复制'}
+                    </button>
+                  </div>
+                  <div
+                    className="prose prose-sm max-w-none bg-gradient-to-br from-gray-50 to-white p-5 rounded-xl border border-gray-200 whitespace-pre-wrap text-sm text-gray-800 leading-relaxed"
                   >
-                    {copied ? <CheckCircle size={13} /> : <Copy size={13} />}
-                    {copied ? '已复制' : '复制'}
-                  </button>
+                    {(result.result || result.revised_text).split('\n').map((line, i) => (
+                      <p key={i} className={line.trim() === '' ? 'h-3' : 'mb-2'}>
+                        {line || '\u00A0'}
+                      </p>
+                    ))}
+                  </div>
                 </div>
-                <div
-                  className="prose prose-sm max-w-none bg-gradient-to-br from-gray-50 to-white p-5 rounded-xl border border-gray-200 whitespace-pre-wrap text-sm text-gray-800 leading-relaxed"
-                >
-                  {(result.result || result.revised_text).split('\n').map((line, i) => (
-                    <p key={i} className={line.trim() === '' ? 'h-3' : 'mb-2'}>
-                      {line || '\u00A0'}
-                    </p>
-                  ))}
-                </div>
-              </div>
+              )}
             </div>
           </div>
 
