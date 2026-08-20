@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, ArrowLeft, Loader2, AlertCircle, Info, Coins, FileEdit, ChevronRight, ScrollText } from 'lucide-react';
+import { ShieldCheck, ArrowLeft, Loader2, AlertCircle, Info, Coins, FileEdit, ChevronRight, ScrollText, CornerDownRight } from 'lucide-react';
 import ExportButtons from '../components/ExportButtons';
 import WorkflowSteps from '../components/WorkflowSteps';
 import FileImportButton from '../components/FileImportButton';
@@ -44,6 +44,24 @@ function getSceneTag(venue: string) {
   return sceneTags[2];
 }
 
+// 主要问题严重度配色（一眼可见：红=Critical / 琥珀=Major / 黄=Minor）
+const sevStyles: Record<string, { color: string; badge: string; label: string }> = {
+  critical: { color: 'border-red-200 bg-red-50', badge: 'bg-red-600 text-white', label: 'Critical' },
+  major:    { color: 'border-amber-300 bg-amber-50', badge: 'bg-amber-500 text-white', label: 'Major' },
+  minor:    { color: 'border-yellow-200 bg-yellow-50', badge: 'bg-yellow-500 text-white', label: 'Minor' },
+};
+
+// 从总体评价文本里识别推荐意见，用于顶部徽章
+function getRecommendation(overall?: string): { label: string; color: string } | null {
+  if (!overall) return null;
+  const t = overall;
+  if (/reject/i.test(t)) return { label: 'Reject', color: 'bg-red-100 text-red-700 border-red-200' };
+  if (/bor[dt]erline/i.test(t)) return { label: 'Borderline', color: 'bg-amber-100 text-amber-700 border-amber-200' };
+  if (/weak accept/i.test(t)) return { label: 'Weak Accept', color: 'bg-orange-100 text-orange-700 border-orange-200' };
+  if (/accept/i.test(t)) return { label: 'Accept', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
+  return null;
+}
+
 export default function ReviewPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -72,6 +90,13 @@ export default function ReviewPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // 单条问题带去修改页（reviewer 场景，feedback = 该条问题）
+  const goModifyIssue = (issueText: string) => {
+    navigate('/revision', {
+      state: { feedback: issueText, originalText: text, scenario: 'reviewer' }
+    });
   };
 
   const scene = getSceneTag(venue);
@@ -238,18 +263,88 @@ export default function ReviewPage() {
               </div>
             </div>
 
-            {/* 完整报告 */}
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
-                <ScrollText size={14} className="text-gray-400" />
-                <span className="text-sm font-medium text-gray-600">完整审查报告</span>
+            {/* 结构化审稿报告（一眼可见 + 逐条联动修改） */}
+            {result.major_issues && result.major_issues.length > 0 ? (
+              <div className="space-y-5">
+                {/* 总体评价 + 推荐意见 */}
+                {result.overall && (
+                  <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
+                      {getRecommendation(result.overall) ? (
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold border ${getRecommendation(result.overall)!.color}`}>
+                          {getRecommendation(result.overall)!.label}
+                        </span>
+                      ) : <ShieldCheck size={14} className="text-gray-400" />}
+                      <span className="text-sm font-medium text-gray-600">总体评价</span>
+                    </div>
+                    <div className="p-4 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{result.overall}</div>
+                  </div>
+                )}
+
+                {/* 主要问题：按严重度彩色高亮 + 可逐条带去修改 */}
+                {result.major_issues.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <AlertCircle size={15} className="text-red-500" />
+                      <h4 className="font-semibold text-gray-800 text-sm">主要问题（{result.major_issues.length}）</h4>
+                    </div>
+                    <div className="space-y-2">
+                      {result.major_issues.map((issue, i) => {
+                        const s = sevStyles[issue.severity] || sevStyles.minor;
+                        return (
+                          <div key={i} className={`rounded-xl border ${s.color} overflow-hidden`}>
+                            <div className="flex items-start gap-3 p-3.5">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold text-white shrink-0 ${s.badge}`}>
+                                {s.label}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{issue.text}</p>
+                              </div>
+                              <button
+                                onClick={() => goModifyIssue(issue.text)}
+                                className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 bg-white text-indigo-600 rounded-lg text-xs font-medium border border-indigo-200 hover:bg-indigo-50 transition-all shadow-sm"
+                              >
+                                <CornerDownRight size={13} />
+                                针对此条修改
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* 优点 */}
+                {result.strengths && (
+                  <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 text-sm font-medium text-gray-600">优点</div>
+                    <div className="p-4 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{result.strengths}</div>
+                  </div>
+                )}
+
+                {/* 修改建议 */}
+                {result.suggestions && (
+                  <div className="bg-gradient-to-br from-emerald-50/70 to-white rounded-xl border border-emerald-100 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-emerald-100 text-sm font-medium text-emerald-700">对作者的修改建议</div>
+                    <div className="p-4 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{result.suggestions}</div>
+                  </div>
+                )}
               </div>
-              <div className="p-4">
-                <pre className="whitespace-pre-wrap font-sans text-sm text-gray-800 leading-relaxed">
-                  {result.result}
-                </pre>
+            ) : (
+              /* 无结构化数据时回退：平铺完整报告 */
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
+                  <ScrollText size={14} className="text-gray-400" />
+                  <span className="text-sm font-medium text-gray-600">完整审查报告</span>
+                </div>
+                <div className="p-4">
+                  <pre className="whitespace-pre-wrap font-sans text-sm text-gray-800 leading-relaxed">
+                    {result.result}
+                  </pre>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
 

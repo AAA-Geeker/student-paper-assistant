@@ -99,6 +99,12 @@ export interface WorkflowResponse {
   response_letter?: string;
   revised_paper?: string;
   compare_items?: string[];
+  // 投稿前审查（pre_submission_review）结构化结果
+  overall?: string;
+  issues_multiline?: string;
+  strengths?: string;
+  suggestions?: string;
+  major_issues?: { severity: 'critical' | 'major' | 'minor'; text: string }[];
 }
 
 export const estimateAigcRewrite = (data: Omit<AigcRewriteRequest, 'urgent'>) =>

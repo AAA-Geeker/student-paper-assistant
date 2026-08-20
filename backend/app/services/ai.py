@@ -404,6 +404,59 @@ async def de_ai_task(
     )
 
 
+# ─── 投稿前审查报告：结构化段落标记（供解析拆出 总体评价/问题/优点/建议） ──
+REV_OVERALL_MARK = "【总体评价】"
+REV_ISSUES_MARK = "【主要问题】"
+REV_STRENGTHS_MARK = "【优点】"
+REV_SUGG_MARK = "【修改建议】"
+
+# 问题严重度前缀（纯文字，非排版符号；便于前端按严重度高亮 + 逐条联动修改）
+SEV_PREFIXES = ("Critical：", "Major：", "Minor：")
+_SEV_KEYS = {"critical": "critical", "major": "major", "minor": "minor"}
+
+
+def parse_review_output(out: str) -> Dict:
+    """把审稿报告拆成 {overall, issues_multiline, strengths, suggestions, major_issues}。
+
+    - 各段按【】标记切出（容错：缺段回落到空字符串）。
+    - major_issues: [{severity, text}]，从「主要问题」段逐行解析 Critical/Major/Minor 前缀。
+    """
+    def _slice(mark: str, end_mark: str) -> str:
+        si = out.find(mark)
+        if si < 0:
+            return ""
+        si += len(mark)
+        ei = out.find(end_mark, si) if end_mark else -1
+        return out[si:ei].strip() if ei > si else out[si:].strip()
+
+    overall = _slice(REV_OVERALL_MARK, REV_ISSUES_MARK)
+    issues_text = _slice(REV_ISSUES_MARK, REV_STRENGTHS_MARK)
+    strengths = _slice(REV_STRENGTHS_MARK, REV_SUGG_MARK)
+    suggestions = _slice(REV_SUGG_MARK, "")
+
+    major_issues: List[Dict] = []
+    for line in issues_text.splitlines():
+        ln = line.strip()
+        if not ln:
+            continue
+        sev = "minor"
+        for prefix in SEV_PREFIXES:
+            if ln.startswith(prefix):
+                sev = _SEV_KEYS[prefix.lower().rstrip("：")]
+                ln = ln[len(prefix):].strip()
+                break
+        if ln:
+            major_issues.append({"severity": sev, "text": ln})
+
+    return {
+        "overall": overall,
+        "issues_multiline": issues_text,
+        "strengths": strengths,
+        "suggestions": suggestions,
+        "major_issues": major_issues,
+    }
+
+
 SYSTEM_PROMPT_REV = (
     "你是一位资深、挑剔、经验丰富的学术会议/期刊审稿人，正在撰写一篇投稿的审稿报告。\n"
     "硬性要求：\n"
@@ -411,8 +464,8 @@ SYSTEM_PROMPT_REV = (
     "等夸张或模板套话，不出现\"首先/其次/总之/希望作者\"等 AI 味衔接。\n"
     "2. 严格依据论文内容评审，直接指出具体问题（哪一节、哪句、什么不足），可复现、可执行。\n"
     "3. 评分与推荐用具体数字/档位，理由具体。\n"
-    "4. 禁止输出任何 Markdown 或排版符号：#、*、**、-、>、数字编号、竖线表格等一律不用；"
-    "分段小标题用纯文本（如\"总体评价/主要问题/优点\"），不用 # 前缀；列表改用通顺叙述或分号衔接。\n"
+    "4. 禁止输出 Markdown 或表格排版符号：#、*、**、-、>、竖线等不用；但允许用【】括起的小标题，"
+    "以及用 Critical：/Major：/Minor：（后接中文冒号）作为问题严重度前缀。\n"
     "5. 直接输出审稿报告，不要任何前置说明或寒暄。"
 )
 
@@ -427,12 +480,18 @@ async def de_ai_review(
     """投稿前审查：以"资深审稿人"语体生成去 AI 痕迹的专业审稿报告。"""
     prompt = (
         f"请以 {venue}（{venue_type}）审稿人视角，对下面这篇论文撰写审稿报告。\n\n"
-        "请按以下四部分用普通文字小标题组织（不要使用 #、*、-、数字编号等任何符号）：\n"
-        "总体评价：给出创新性、方法与实验充分度、写作与可读性的 1-5 分，以及推荐意见"
-        "（Accept / Weak Accept / Borderline / Reject，选一）。\n"
-        "主要问题：按严重程度（Critical / Major / Minor）排序，每条指出具体位置、问题、建议。\n"
-        "优点：简要列出值得肯定之处。\n"
-        "对作者的修改建议：具体、可执行。\n\n"
+        "请严格按以下五个用【】括起的小标题分节输出，顺序与标题文字必须与下面完全一致，"
+        "不要输出这些标题之外的任何内容：\n"
+        f"{REV_OVERALL_MARK}\n"
+        "（给出创新性、方法与实验充分度、写作与可读性的 1-5 分，以及推荐意见 "
+        "Accept/Weak Accept/Borderline/Reject 选一）\n"
+        f"{REV_ISSUES_MARK}\n"
+        "（按严重程度列出问题，每条单独一行，行首必须以 Critical：或 Major：或 Minor：开头，"
+        "每条指出具体位置、问题、建议）\n"
+        f"{REV_STRENGTHS_MARK}\n"
+        "（简要列出值得肯定之处）\n"
+        f"{REV_SUGG_MARK}\n"
+        "（对作者的具体、可执行修改建议）\n\n"
         f"论文内容：\n{text}"
     )
     return await call_llm_with_config(
