@@ -105,6 +105,8 @@ export interface WorkflowResponse {
   strengths?: string;
   suggestions?: string;
   major_issues?: { severity: 'critical' | 'major' | 'minor'; text: string }[];
+  // 需求：审稿单整合「规范意见」（格式/内容/版本/字体字号/位置 五维）
+  fmt_issues?: FormatCheckIssue[];
 }
 
 export const estimateAigcRewrite = (data: Omit<AigcRewriteRequest, 'urgent'>) =>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, ArrowLeft, Loader2, AlertCircle, Info, Coins, FileEdit, ChevronRight, ScrollText, CornerDownRight, Award, ClipboardList } from 'lucide-react';
 import ExportButtons from '../components/ExportButtons';
@@ -51,6 +51,44 @@ const sevStyles: Record<string, { color: string; badge: string; label: string }>
   minor:    { color: 'border-yellow-200 bg-yellow-50', badge: 'bg-yellow-500 text-white', label: 'Minor' },
 };
 
+// 规范意见（格式/内容/版本/字体字号/位置）维度配色
+const fmtDimColor: Record<string, string> = {
+  '格式':    'bg-blue-50 text-blue-700 border-blue-200',
+  '内容':    'bg-emerald-50 text-emerald-700 border-emerald-200',
+  '版本':    'bg-purple-50 text-purple-700 border-purple-200',
+  '字体字号': 'bg-cyan-50 text-cyan-700 border-cyan-200',
+  '位置':    'bg-orange-50 text-orange-700 border-orange-200',
+};
+
+// 期刊分类 → 平台类型（分组标签到模板的映射，供悬停样例 + 平台特点提示）
+// 平台类别：conference(ACL/EMNLP) / sci(SCI期刊) / core(国内核心)
+type PlatformId = 'conference' | 'sci' | 'core';
+const groupPlatform: Record<string, PlatformId> = {
+  'ACL/EMNLP 审稿': 'conference',
+  'SCI 期刊审稿': 'sci',
+  '国内核心审稿': 'core',
+};
+
+// 悬停「期刊板块」时展示的该平台特点 + 审查修改后的大概样例（静态示例，零 LLM 成本）
+interface PlatformSample { features: string[]; before: string; after: string; }
+const platformSamples: Record<PlatformId, PlatformSample> = {
+  conference: {
+    features: ['ACL/EMNLP 官方 two-column 模板', '参考文献 LaTeX/BibTeX 规范', '摘要须含方法与结果', '图/表编号与正文引用一致', '正文 10pt 双栏标准'],
+    before: '原文：\nwe propose a new method (see Fig.3) that outperforms baselines by 5%. \nThe performance of the proposed approach is shown in Fig.4. References are listed at the end.',
+    after: '修改后（标注修改处）：\nWe propose a novel method (Fig.3, correctly numbered) that outperforms all baselines (Tab.2) by 5% (p<0.05). \nResults are shown in Fig.4. All citations follow the ACL BibTeX style; Fig.3 referenced before Tab.2 in text.',
+  },
+  sci: {
+    features: ['按期刊投稿模板排版（引用上标）', '参考文献文中数字标注', '修订稿附 Response Letter 逐条回复', '图分辨率 ≥300dpi', '统计与显著性表述规范'],
+    before: '原文：\nThe model achieved good performance. (references not in superscript) \nFigure 1 shows the results. We did not add response letter.',
+    after: '修改后：\nThe model achieved superior performance (0.94 AUROC)¹,². \nFig. 1 (300dpi, resized) shows the results; a Response Letter replying to each reviewer comment is appended with tracked changes and version 2.0 marked.',
+  },
+  core: {
+    features: ['GB/T 7714 参考文献格式', '摘要+关键词规范', '标题层级宋体/黑体、字号符合学报', '注释体例统一', '数据来源与单位规范'],
+    before: '原文：\n本文提出了一种新方法[1]，并在实验中得到较好效果（如图三所示）。\n关键词：算法；文本。参考文献格式不统一。',
+    after: '修改后：\n本文提出了一种新方法[1-2]，实验结果表明其准确率提升 3.2%（如 图3 所示）。\n关键词：算法；文本分类；机器学习  一级标题黑体小三、正文宋体五号，参考文献统一为 GB/T 7714 格式，图题置于图下方。',
+  },
+};
+
 // 从总体评价文本里识别推荐意见，用于顶部徽章
 function getRecommendation(overall?: string): { label: string; color: string } | null {
   if (!overall) return null;
@@ -64,8 +102,7 @@ function getRecommendation(overall?: string): { label: string; color: string } |
 
 // ─── 需求10：分平台审稿单样式模拟 ───
 // 平台类别：conference(ACL/EMNLP) / sci(SCI期刊) / core(国内核心)，各自拟真审稿单布局
-type PlatformId = 'conference' | 'sci' | 'core';
-type SectionKey = 'overall' | 'issues' | 'strengths' | 'suggestions';
+type SectionKey = 'overall' | 'issues' | 'strengths' | 'suggestions' | 'fmt';
 
 interface PlatformTemplate {
   id: PlatformId;
@@ -92,6 +129,7 @@ const platformTemplates: Record<PlatformId, PlatformTemplate> = {
       { key: 'issues', title: 'Weaknesses / Main Concerns', icon: '⚠️' },
       { key: 'strengths', title: 'Strengths', icon: '✅' },
       { key: 'suggestions', title: 'Suggestions for Revision', icon: '📝' },
+      { key: 'fmt', title: 'Format & Compliance Check', icon: '🎯' },
     ],
   },
   sci: {
@@ -106,6 +144,7 @@ const platformTemplates: Record<PlatformId, PlatformTemplate> = {
       { key: 'issues', title: 'Major & Minor Comments', icon: '🔍' },
       { key: 'suggestions', title: 'Specific Suggestions to Authors', icon: '📖' },
       { key: 'strengths', title: 'Strengths', icon: '👍' },
+      { key: 'fmt', title: 'Editorial Format Requirements', icon: '🎯' },
     ],
   },
   core: {
@@ -120,6 +159,7 @@ const platformTemplates: Record<PlatformId, PlatformTemplate> = {
       { key: 'issues', title: '主要问题与修改意见', icon: '📢' },
       { key: 'suggestions', title: '具体修改建议', icon: '🖊️' },
       { key: 'strengths', title: '值得肯定之处', icon: '✒️' },
+      { key: 'fmt', title: '编辑规范审查（格式/版本/字号）', icon: '📐' },
     ],
   },
 };
@@ -141,6 +181,15 @@ export default function ReviewPage() {
   const [credits, setCredits] = useState<number | null>(null);
   // 需求10：审稿单视图样式（默认跟随所选平台，可切换预览其他平台样式）
   const [viewMode, setViewMode] = useState<PlatformId | 'platform'>(() => getPlatformId(venue));
+  // 悬停「期刊板块」分组标签，展示该平台特点 + 修改后样例（fixed 定位避免被卡片 overflow 裁剪）
+  const [hoverInfo, setHoverInfo] = useState<{ label: string; left: number; top: number } | null>(null);
+  // 延迟关闭，给鼠标从标签滑入浮层留时间，避免一动就消失
+  const hoverTimer = useRef<number | null>(null);
+  const clearHoverTimer = () => { if (hoverTimer.current !== null) { window.clearTimeout(hoverTimer.current); hoverTimer.current = null; } };
+  const scheduleHoverClose = () => {
+    clearHoverTimer();
+    hoverTimer.current = window.setTimeout(() => setHoverInfo(null), 220);
+  };
 
   useEffect(() => {
     getProfile().then(r => setCredits(r.data.credits)).catch(() => {});
@@ -219,10 +268,31 @@ export default function ReviewPage() {
       if (!result.suggestions) return null;
       return <div className="whitespace-pre-wrap text-sm text-emerald-800 leading-relaxed">{result.suggestions}</div>;
     }
+    if (key === 'fmt') {
+      if (!result.fmt_issues || result.fmt_issues.length === 0) return null;
+      return (
+        <div className="space-y-2">
+          {result.fmt_issues.map((issue, i) => {
+            const s = sevStyles[issue.severity] || sevStyles.minor;
+            return (
+              <div key={i} className={`rounded-xl border ${s.color} px-3 py-2.5 flex items-start gap-2.5`}>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold text-white shrink-0 ${s.badge}`}>{s.label}</span>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-medium border shrink-0 ${fmtDimColor[issue.dimension] || fmtDimColor['格式']}`}>{issue.dimension}</span>
+                <p className="text-sm text-gray-800 leading-relaxed"><span className="text-xs text-gray-400 block mb-0.5">规范建议：</span>{issue.text}</p>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
     return null;
   };
 
   const scene = getSceneTag(venue);
+
+  // 悬停浮层数据（fixed 定位，脱离卡片 overflow-hidden 裁剪）
+  const hoverPid = hoverInfo ? groupPlatform[hoverInfo.label] : null;
+  const hoverSample = hoverPid ? platformSamples[hoverPid] : null;
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -287,30 +357,49 @@ export default function ReviewPage() {
         {/* 步骤1：输入参数 */}
         {step === 1 && (
           <div className="p-6 space-y-6">
-            {/* 场景标签导航 - 快速切换 */}
+            {/* 场景标签导航 - 快速切换（悬停分组标签可预览该平台特点+修改样例） */}
             <div className="flex flex-wrap gap-2 pb-1">
-              {venueGroups.map((group, gi) => (
-                <div key={gi} className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">{group.label}</span>
-                  <div className="flex gap-1">
-                    {group.venues.map(v => (
-                      <button
-                        key={v.id}
-                        onClick={() => setVenue(v.id)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-                          venue === v.id
-                            ? 'border-indigo-500 bg-indigo-50 text-indigo-700 shadow-sm'
-                            : 'border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
-                        }`}
-                      >
-                        <span className="mr-1">{v.label.split('（')[0]}</span>
-                        <span className="opacity-60">({v.badge})</span>
-                      </button>
-                    ))}
+              {venueGroups.map((group, gi) => {
+                return (
+                  <div key={gi} className="flex flex-wrap items-center gap-1.5">
+                    <span
+                      className="text-xs font-medium text-gray-400 uppercase tracking-wider cursor-help border-b border-dashed border-gray-300 hover:text-indigo-500 hover:border-indigo-400 transition-colors"
+                      title="悬停查看该平台审查特点与修改样例"
+                      onMouseEnter={(e) => {
+                        clearHoverTimer();
+                        const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                        const vh = window.innerHeight || 800;
+                        const maxH = Math.round(vh * 0.6); // 浮层可视高度上限（配合滚动）
+                        let top: number;
+                        if (r.bottom + maxH <= vh) top = r.bottom;        // 下方放得下 → 往下弹
+                        else if (r.top - maxH >= 8) top = r.top - maxH;   // 上方放得下 → 往上弹
+                        else top = 8;                                      // 视口太小 → 贴顶靠滚动
+                        setHoverInfo({ label: group.label, left: r.left, top });
+                      }}
+                      onMouseLeave={scheduleHoverClose}
+                    >
+                      {group.label}
+                    </span>
+                    <div className="flex gap-1">
+                      {group.venues.map(v => (
+                        <button
+                          key={v.id}
+                          onClick={() => setVenue(v.id)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                            venue === v.id
+                              ? 'border-indigo-500 bg-indigo-50 text-indigo-700 shadow-sm'
+                              : 'border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
+                          }`}
+                        >
+                          <span className="mr-1">{v.label.split('（')[0]}</span>
+                          <span className="opacity-60">({v.badge})</span>
+                        </button>
+                      ))}
+                    </div>
+                    {gi < venueGroups.length - 1 && <ChevronRight size={14} className="text-gray-300 mx-0.5" />}
                   </div>
-                  {gi < venueGroups.length - 1 && <ChevronRight size={14} className="text-gray-300 mx-0.5" />}
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* 论文输入 */}
@@ -493,6 +582,44 @@ export default function ReviewPage() {
           </div>
         )}
       </div>
+
+      {/* 悬停期刊板块弹出的平台特点 + 修改后样例浮层（fixed 定位，跳过卡片 overflow-hidden 裁剪） */}
+      {hoverSample && hoverInfo && (
+        <div
+          className="fixed z-50 w-[min(480px,calc(100vw-24px))] bg-white rounded-2xl border border-indigo-100 shadow-2xl p-4 text-left max-h-[60vh] overflow-y-auto"
+          style={{
+            left: Math.min(hoverInfo.left, window.innerWidth - 500 > 0 ? window.innerWidth - 500 : 8),
+            top: Math.max(8, hoverInfo.top),
+            opacity: 1,
+          }}
+          onMouseEnter={clearHoverTimer}
+          onMouseLeave={scheduleHoverClose}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <span className="px-2 py-0.5 rounded-full text-[11px] font-bold text-white bg-indigo-600">{hoverPid === 'conference' ? 'ACL/EMNLP 顶会' : hoverPid === 'sci' ? 'SCI 期刊' : '国内核心'}</span>
+            <span className="text-xs text-gray-500">该平台审查特点 + 修改后样例</span>
+          </div>
+          <div className="mb-2">
+            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">平台特点</p>
+            <div className="flex flex-wrap gap-1">
+              {hoverSample.features.map((f, i) => (
+                <span key={i} className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[11px] border border-indigo-100">{f}</span>
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-2">
+            <div className="rounded-lg bg-red-50 border border-red-100 p-2.5">
+              <p className="text-[11px] font-semibold text-red-400 mb-1">审查会指出（修改前）</p>
+              <pre className="whitespace-pre-wrap font-sans text-xs text-red-700 leading-relaxed">{hoverSample.before}</pre>
+            </div>
+            <div className="rounded-lg bg-emerald-50 border border-emerald-100 p-2.5">
+              <p className="text-[11px] font-semibold text-emerald-500 mb-1">修改后样例</p>
+              <pre className="whitespace-pre-wrap font-sans text-xs text-emerald-800 leading-relaxed">{hoverSample.after}</pre>
+            </div>
+          </div>
+          <div className="mt-2 text-[11px] text-gray-400 text-right">选择此平台后，审稿报告将按该平台规范给出针对性意见</div>
+        </div>
+      )}
     </div>
   );
 }

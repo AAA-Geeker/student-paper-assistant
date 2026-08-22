@@ -26,6 +26,7 @@ from app.services.ai import (
     de_ai_task,
     de_ai_review,
     parse_review_output,
+    parse_review_fmt,
     parse_format_output,
     FMT_PASS_MARK,
     FMT_ISSUE_MARK,
@@ -189,13 +190,14 @@ async def pre_submission_review(
         # 注：Dify 工作流因运行时变量解析 bug 暂不可用，改走此直连实现。
         out = await de_ai_review(text, venue=venue, venue_type=venue_type, model=model)
         parsed = parse_review_output(out)
+        parsed["fmt_issues"] = parse_review_fmt(out)
         return {
             "type": "pre_submission_review",
             "venue": venue,
             "venue_type": venue_type,
             "original_length": text_length,
             "result": out,
-            **parsed,  # overall / strengths / suggestions / issues_multiline / major_issues
+            **parsed,  # overall / strengths / suggestions / issues_multiline / major_issues / fmt_issues
         }
 
     ok, res = await deduct_and_run(db, user, "pre_submission_review", text_length, urgent, runner)

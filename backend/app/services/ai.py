@@ -409,10 +409,25 @@ REV_OVERALL_MARK = "【总体评价】"
 REV_ISSUES_MARK = "【主要问题】"
 REV_STRENGTHS_MARK = "【优点】"
 REV_SUGG_MARK = "【修改建议】"
+# 需求：审稿单整合「平台针对性规范意见」（格式/内容/版本/字体字号/位置 五维）
+REV_FMT_MARK = "【规范意见】"
+
+# 平台针对性审查侧重（注入 prompt，让审稿意见贴合不同投稿期刊/会议规范）
+REV_FMT_HINTS: Dict[str, str] = {
+    "ACL": "ACL/EMNLP 等自然语言处理顶会：注重格式规范（ACL 官方格式 two-column、图表编号与引用、参考文献 LaTeX/BibTeX 规范）、内容完整（摘要需含方法与结果、相关工作对比充分）、版本统一（术语一致、版本号/日期一致）、字体字号（正文 10pt two-column 标准）、位置（图/表/附录位置与引用一致）。",
+    "CVPR": "CVPR/ICCV 等计算机视觉顶会：注重格式（CVPR 官方格式模板、two-column、图表编号）、内容（实验要含 baseline 对比与消融、复杂度分析）、版本（定理/公式编号连续、术语统一）、字体字号（正文标准模板字号）、位置（图/表/补充材料位置与正文引用对应）。",
+    "SCI-1": "SCI 一区期刊（如 Nature/Science 子刊体例）：注重格式（按期刊投稿模板、参考文献号文内标注、图分辨率高）、内容（创新性论证充分、数据可复现、统计描述规范）、版本（修订稿需在文末附 Response Letter、标注修改处、版本号）、字体字号（期刊要求字号与单双栏）、位置（图/表/补充材料位置）。",
+    "SCI-2": "SCI 二区期刊体例：注重格式（期刊模板、参考文献格式统一）、内容（方法与结果完整性、结论与数据对应）、版本（修订稿标注修改、术语统一）、字体字号（期刊排版要求）、位置（图表编号与引用一致、补充材料归类）。",
+    "CSSCI": "中文核心（CSSCI/北大核心人文社科）：注重格式（GB/T 7714 参考文献格式、注释体例、摘要与关键词规范）、内容（理论框架完整、文献综述充分、数据来源与方法表述规范）、版本（修订说明、术语统一）、字体字号（宋体/黑体标题等级、字号符合学报要求）、位置（各级标题层级、图表格编号位置）。",
+    "CSCD": "中文核心（CSCD 国内理工科）：注重格式（学报模板、GB/T 7714 参考文献）、内容（实验/公式完整、图表清晰、单位规范）、版本（修订记录、术语统一）、字体字号（学报要求标题与正文字号）、位置（公式编号、图表位置）。",
+}
 
 # 问题严重度前缀（纯文字，非排版符号；便于前端按严重度高亮 + 逐条联动修改）
 SEV_PREFIXES = ("Critical：", "Major：", "Minor：")
 _SEV_KEYS = {"critical": "critical", "major": "major", "minor": "minor"}
+
+# 规范审查/审稿单规范意见的维度（格式/内容/版本/字体字号/位置）
+FMT_DIMS_FIVE = ("格式", "内容", "版本", "字体字号", "位置")
 
 
 def parse_review_output(out: str) -> Dict:
@@ -454,7 +469,49 @@ def parse_review_output(out: str) -> Dict:
         "strengths": strengths,
         "suggestions": suggestions,
         "major_issues": major_issues,
+        "fmt_multiline": _slice(REV_FMT_MARK, ""),
     }
+
+
+def parse_review_fmt(out: str) -> List[Dict]:
+    """从审稿报告的【规范意见】段拆出五维规范问题 [{severity, dimension, text}]。
+
+    问题行沿用 Critical:/Major:/Minor: 严重度前缀 + 「维度｜」维度标注
+    （格式/内容/版本/字体字号/位置），与 format_check 的 parse_format_output 同构。
+    缺段/无前缀/无维度前缀时容错兜底。
+    """
+    fmt_text = ""
+    si = out.find(REV_FMT_MARK)
+    if si >= 0:
+        fmt_text = out[si + len(REV_FMT_MARK):].strip()
+
+    items: List[Dict] = []
+    for line in fmt_text.splitlines():
+        ln = line.strip()
+        if not ln:
+            continue
+        sev = "minor"
+        for prefix in SEV_PREFIXES:
+            if ln.startswith(prefix):
+                sev = _SEV_KEYS[prefix.lower().rstrip("：")]
+                ln = ln[len(prefix):].strip()
+                break
+        dim = None
+        for d in FMT_DIMS_FIVE:
+            if ln.startswith(d + "｜") or ln.startswith(d + "|") or ln.startswith(d + "："):
+                dim = d
+                ln = ln[len(d) + 1:].strip()
+                break
+        if not dim:
+            for d in FMT_DIMS_FIVE:
+                if d in ln[:8]:
+                    dim = d
+                    break
+        if not dim:
+            dim = "格式"
+        if ln:
+            items.append({"severity": sev, "dimension": dim, "text": ln})
+    return items
 
 
 # ─── 格式/规范审查（需求9：格式 / 内容 / 版本 / 字体字号）──
@@ -548,9 +605,11 @@ async def de_ai_review(
     temperature: float = 0.5,
 ) -> str:
     """投稿前审查：以"资深审稿人"语体生成去 AI 痕迹的专业审稿报告。"""
+    fmt_hint = REV_FMT_HINTS.get(venue, "请结合该期刊/会议既往投稿规范与传统，从 格式/内容/版本/字体字号/位置 五个维度给出针对性规范意见。")
     prompt = (
         f"请以 {venue}（{venue_type}）审稿人视角，对下面这篇论文撰写审稿报告。\n\n"
-        "请严格按以下五个用【】括起的小标题分节输出，顺序与标题文字必须与下面完全一致，"
+        f"该期刊/会议对稿件有特定偏好与规范要求：{fmt_hint}\n\n"
+        "请严格按以下六个用【】括起的小标题分节输出，顺序与标题文字必须与下面完全一致，"
         "不要输出这些标题之外的任何内容：\n"
         f"{REV_OVERALL_MARK}\n"
         "（给出创新性、方法与实验充分度、写作与可读性的 1-5 分，以及推荐意见 "
@@ -561,7 +620,11 @@ async def de_ai_review(
         f"{REV_STRENGTHS_MARK}\n"
         "（简要列出值得肯定之处）\n"
         f"{REV_SUGG_MARK}\n"
-        "（对作者的具体、可执行修改建议）\n\n"
+        "（对作者的具体、可执行修改建议）\n"
+        f"{REV_FMT_MARK}\n"
+        "（针对该期刊/会议的规范审查：从 格式、内容、版本、字体字号、位置 五个维度列出写稿者"
+        "需要修正的规范问题，每条单独一行，行首必须以 Critical：或 Major：或 Minor：开头，行内最前面"
+        "标注所属维度，写法为：格式｜、内容｜、版本｜、字体字号｜或位置｜，然后写具体位置、问题、建议修改）\n\n"
         f"论文内容：\n{text}"
     )
     return await call_llm_with_config(
